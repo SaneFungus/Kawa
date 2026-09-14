@@ -9,6 +9,7 @@ function updateTopBar() {
     setText('ui-rep', PlayerProfile.getReputation() + ' pkt');
     const best = PlayerProfile.getBest();
     setText('ui-best', best === null ? '—' : best.toFixed(1) + '/63');
+    setText('ui-day', PlayerProfile.getDay());
 
     if (PlayerProfile.getReputation() >= REQ_REP_COMP && !PlayerProfile.isCompUnlocked()) {
         PlayerProfile.unlockComp();
@@ -20,6 +21,7 @@ function updateTopBar() {
     }
 
     Kawiarnia.renderEquipmentPanel();
+    Kawiarnia.renderLocationPanel();
 }
 
 function switchView(view) {

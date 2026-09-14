@@ -71,6 +71,18 @@ const database = {
     ]
 };
 
+// Poziomy lokalu Kawiarni (Etap 4a). Tier 1 (kiosk) z DESIGN.md nie jest tu
+// modelowany — tier 2 jest opisany tam jako "dzisiejszy punkt startowy".
+// `stations` na razie tylko zapisane, nieużywane — konsumuje je Etap 4b.
+const LOCATIONS = [
+    { id: 'l2', tier: 2, name: 'Kawiarnia Osiedlowa', place: 'Świdnica',
+      rent: 20, moveCost: 0, customerValueMult: 1.00, stations: 1,
+      desc: 'Dzisiejszy punkt startowy. Niewielki, ale bezpieczny ruch.' },
+    { id: 'l3', tier: 3, name: 'Lokal w centrum Wrocławia', place: 'Wrocław',
+      rent: 55, moveCost: 300, customerValueMult: 1.35, stations: 2,
+      desc: 'Więcej klientów i wyższe ceny, ale i wyższy czynsz. Drugie stanowisko i barman — już w następnym kroku.' }
+];
+
 const CATEGORY_LABELS = { grinder: 'Młynki', dripper: 'Zaparzacze', kettle: 'Czajniki', coffee: 'Ziarno' };
 
 const SENSORY_LABELS = {

@@ -21,7 +21,10 @@ const PlayerProfile = (function () {
         lastPour: { lab: null, comp: null },
         recipes: [],
         activeRecipeId: null,
-        seedCounter: 1
+        seedCounter: 1,
+        locationId: 'l2',
+        day: 1,
+        dayStats: { customers: 0, earned: 0 }
     };
 
     // ---------------- Zdarzenia + zapis ----------------
@@ -125,6 +128,34 @@ const PlayerProfile = (function () {
         emit('recipes');
     }
 
+    // ---------------- Lokal, czynsz i dzień (Etap 4a) ----------------
+    function getLocation() { return LOCATIONS.find(l => l.id === state.locationId); }
+    function getDay() { return state.day; }
+    function getDayStats() { return state.dayStats; }
+    function recordDaySale(money) {
+        state.dayStats.customers++;
+        state.dayStats.earned += money;
+        emit('day-stats');
+    }
+    function endDay() {
+        const rent = getLocation().rent;
+        const paid = Math.min(rent, state.money);
+        state.money -= paid;
+        const summary = { day: state.day, stats: Object.assign({}, state.dayStats), rent: rent, paid: paid };
+        state.dayStats = { customers: 0, earned: 0 };
+        state.day++;
+        emit('day-ended');
+        return summary;
+    }
+    function moveTo(id) {
+        const loc = LOCATIONS.find(l => l.id === id);
+        if (!loc) return false;
+        if (!spendMoney(loc.moveCost)) return false;
+        state.locationId = id;
+        emit('location');
+        return true;
+    }
+
     // ---------------- Seed ----------------
     function nextSeed(multiplier) { return (state.seedCounter++ * multiplier) >>> 0; }
 
@@ -140,6 +171,7 @@ const PlayerProfile = (function () {
         getBest, updateBest,
         isCompUnlocked, unlockComp, isCompWon, setCompWon,
         getRecipes, getActiveRecipe, saveRecipe, setActiveRecipe,
+        getLocation, getDay, getDayStats, recordDaySale, endDay, moveTo,
         nextSeed,
         save, load
     };
