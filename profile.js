@@ -16,7 +16,8 @@ const PlayerProfile = (function () {
         money: 0, rep: 0, fame: 0,
         compUnlocked: false, compWon: false, best: null,
         inventory: { grinder: 'g1', dripper: 'd1', kettle: 'k1', coffee: 'c1' },
-        owned: ['g1', 'd1', 'k1', 'c1'],
+        owned: ['g1', 'd1', 'k1'],
+        coffeeStock: { c1: 250 },
         history: { lab: [], comp: [] },
         lastPour: { lab: null, comp: null },
         recipes: [],
@@ -77,6 +78,26 @@ const PlayerProfile = (function () {
     }
     function getCurrentCoffee() {
         return database.coffee.find(i => i.id === state.inventory.coffee);
+    }
+
+    // ---------------- Ziarno jako surowiec zużywalny (Etap 5) ----------------
+    // W przeciwieństwie do sprzętu (kupione = trwałe), ziarno ma skończony zapas
+    // w gramach per rodzaj. Zakup dokłada `bagSize` gramów, parzenie ujmuje
+    // `dose` gramów z aktualnie wyposażonego rodzaju.
+    function getCoffeeStock(id) { return state.coffeeStock[id] || 0; }
+    function getCurrentCoffeeStock() { return getCoffeeStock(state.inventory.coffee); }
+    function hasEnoughActiveCoffee(grams) { return getCurrentCoffeeStock() >= grams; }
+    function buyCoffee(id) {
+        const item = database.coffee.find(i => i.id === id);
+        if (!spendMoney(item.price)) return false;
+        state.coffeeStock[id] = getCoffeeStock(id) + item.bagSize;
+        emit('coffee-stock');
+        return true;
+    }
+    function consumeActiveCoffee(grams) {
+        const id = state.inventory.coffee;
+        state.coffeeStock[id] = Math.max(0, getCoffeeStock(id) - grams);
+        emit('coffee-stock');
     }
 
     // ---------------- Historia pomiarów (wykres) ----------------
@@ -177,6 +198,7 @@ const PlayerProfile = (function () {
         getMoney, addMoney, spendMoney,
         getReputation, addReputation, getFame, addFame,
         getInventory, owns, equip, buy, getCurrentEquipment, getCurrentCoffee,
+        getCoffeeStock, getCurrentCoffeeStock, hasEnoughActiveCoffee, buyCoffee, consumeActiveCoffee,
         getHistory, pushHistory, clearHistory,
         getLastPour, setLastPour,
         getBest, updateBest,

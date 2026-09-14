@@ -51,20 +51,25 @@ const database = {
           desc: 'Sterowanie PID z dokładnością do 1°C. Temperatura przestaje być zmienną losową.',
           effect: 'Jakość nalewania 1,02; dryf ±0,3°C.' }
     ],
+    // `bagSize` (Etap 5): ziarno to surowiec zużywalny, nie trwały ekwipunek —
+    // każdy zakup w Sklepie dokłada `bagSize` gramów do zapasu tego konkretnego
+    // rodzaju kawy w `PlayerProfile.coffeeStock`, a każde parzenie ujmuje z niego
+    // `dose` gramów. Market Blend (price 0) nie jest wyjątkiem: kończy się tak
+    // samo jak reszta, tyle że dokupienie kolejnego worka nic nie kosztuje.
     coffee: [
-        { id: 'c1', type: 'coffee', name: 'Market Blend', price: 0, icon: 'fa-seedling',
+        { id: 'c1', type: 'coffee', name: 'Market Blend', price: 0, bagSize: 250, icon: 'fa-seedling',
           quality: 0.55, eyMax: 31.0, acidity: 0.45, body: 1.05, daysOffRoast: 75,
           desc: 'Towarowa arabica z robustą, ciemno wypalona, 75 dni po wypale.',
           effect: 'Jakość 0,55 · EYmax 31% (ciemny wypał rozpuszcza się szybko) · stęchła.' },
-        { id: 'c2', type: 'coffee', name: 'Brazylia Fazenda 83', price: 60, icon: 'fa-leaf',
+        { id: 'c2', type: 'coffee', name: 'Brazylia Fazenda 83', price: 60, bagSize: 250, icon: 'fa-leaf',
           quality: 0.76, eyMax: 30.0, acidity: 0.60, body: 1.10, daysOffRoast: 21,
           desc: 'Klasyczna Brazylia, natural. Orzech, mleczna czekolada, niska kwasowość.',
           effect: 'Jakość 0,76 · mocne body · wybaczająca w nastawie.' },
-        { id: 'c3', type: 'coffee', name: 'Etiopia Guji washed 87', price: 190, icon: 'fa-spa',
+        { id: 'c3', type: 'coffee', name: 'Etiopia Guji washed 87', price: 190, bagSize: 250, icon: 'fa-spa',
           quality: 0.92, eyMax: 28.5, acidity: 1.00, body: 0.85, daysOffRoast: 12,
           desc: 'Jasny wypał, wysoka gęstość ziarna. Bergamotka, jaśmin, brzoskwinia.',
           effect: 'Jakość 0,92 · EYmax 28,5% (trudniej ekstrahować) · wysoka kwasowość.' },
-        { id: 'c4', type: 'coffee', name: 'Kolumbia Gesha 90 (lot konkursowy)', price: 900, icon: 'fa-award',
+        { id: 'c4', type: 'coffee', name: 'Kolumbia Gesha 90 (lot konkursowy)', price: 900, bagSize: 250, icon: 'fa-award',
           quality: 1.00, eyMax: 28.0, acidity: 1.05, body: 0.90, daysOffRoast: 9,
           desc: 'Mikrolot na aukcji. Wąskie okno ekstrakcji, ale sufit smaku bardzo wysoko.',
           effect: 'Jakość 1,00 · karze każdy błąd, nagradza precyzję.' }

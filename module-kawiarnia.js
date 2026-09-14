@@ -4,11 +4,23 @@
 // =============================================================================
 const Kawiarnia = (function () {
 
+    // Dawka z aktywnej receptury (albo domyślnego, rozsądnego nastawu) — ta sama
+    // wartość musi być użyta przy sprawdzaniu zapasu i przy jego zużyciu.
+    function activeDose() {
+        const recipe = PlayerProfile.getActiveRecipe();
+        return recipe ? recipe.params.dose : 15;
+    }
+
     function serveCustomer(i, isBarman) {
         const btn = document.getElementById('btn-work-' + i);
         const cont = document.getElementById('work-progress-container-' + i);
         const bar = document.getElementById('work-progress-' + i);
         if (!cont || !cont.classList.contains('hidden')) return; // stanowisko już zajęte
+        const dose = activeDose();
+        if (!PlayerProfile.hasEnoughActiveCoffee(dose)) {
+            if (!isBarman) showModal('Brak ziarna', 'Zabrakło ' + currentCoffee().name + ' w zapasie (potrzeba ' + dose + ' g). Dokup w Sklepie.', 'fa-seedling', 'text-red-500');
+            return;
+        }
         if (btn) btn.disabled = true;
         cont.classList.remove('hidden');
         bar.style.width = '0%';
@@ -26,6 +38,7 @@ const Kawiarnia = (function () {
         // żadnej nie zapisał).
         const recipe = PlayerProfile.getActiveRecipe();
         const brewParams = recipe ? recipe.params : { dose: 15, water: 250, grind: 700, temp: 93 };
+        PlayerProfile.consumeActiveCoffee(brewParams.dose);
         const seed = PlayerProfile.nextSeed(2246822519);
         const r = BrewEngine.brew(brewParams, currentEquipment(), currentCoffee(), seed);
         const q = r.sensory.pct;
@@ -56,15 +69,19 @@ const Kawiarnia = (function () {
         const loc = PlayerProfile.getLocation();
         const status = document.getElementById('queue-status');
         const left = loc.dailyCap - PlayerProfile.getDayStats().customers;
+        const dose = activeDose();
+        const enoughCoffee = PlayerProfile.hasEnoughActiveCoffee(dose);
         const playerStations = PlayerProfile.hasBarman() ? loc.stations - 1 : loc.stations;
         for (let i = 0; i < playerStations; i++) {
             const btn = document.getElementById('btn-work-' + i);
-            if (btn) btn.disabled = left <= 0;
+            if (btn) btn.disabled = left <= 0 || !enoughCoffee;
         }
         if (!status) return;
         status.textContent = left <= 0
             ? 'Kolejka na dziś zamknięta — zakończ dzień, żeby wrócić do pracy.'
-            : 'Możesz jeszcze obsłużyć ' + left + ' klientów dzisiaj.';
+            : !enoughCoffee
+                ? 'Zabrakło ' + currentCoffee().name + ' w zapasie — dokup w Sklepie.'
+                : 'Możesz jeszcze obsłużyć ' + left + ' klientów dzisiaj.';
     }
 
     // Przebudowuje same stanowiska (liczba/rodzaj się zmienia tylko przy
@@ -104,6 +121,7 @@ const Kawiarnia = (function () {
         const loc = PlayerProfile.getLocation();
         if (loc.stations < 2) return;
         if (PlayerProfile.dayCapReached()) return;
+        if (!PlayerProfile.hasEnoughActiveCoffee(activeDose())) return;
         serveCustomer(loc.stations - 1, true);
     }, 2600);
 
@@ -115,7 +133,7 @@ const Kawiarnia = (function () {
             ['Młynek', eq.grinder.name, 'σg ' + eq.grinder.gsd.toFixed(2)],
             ['Zaparzacz', eq.dripper.name, 'przepływ ×' + eq.dripper.flowMod.toFixed(2)],
             ['Czajnik', eq.kettle.name, 'dryf ±' + eq.kettle.tempDrift + '°C'],
-            ['Ziarno', coffee.name, 'jakość ' + coffee.quality.toFixed(2)],
+            ['Ziarno', coffee.name, 'jakość ' + coffee.quality.toFixed(2) + ' · zapas ' + PlayerProfile.getCoffeeStock(coffee.id) + ' g'],
             ['Aktywna receptura', recipe ? recipe.name : 'domyślny nastaw', recipe ? ('EY ' + recipe.result.ey + '%') : '15g/250g/700µm/93°C']
         ];
         panel.innerHTML = rows.map(r =>

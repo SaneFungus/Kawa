@@ -11,6 +11,13 @@ const params = {
     comp: { dose: 15, water: 250, grind: 700, temp: 93 }
 };
 
+// Czy w tym trybie trwa właśnie animacja parzenia — refreshReadouts() musi to
+// znać, bo sam stan przycisku (disabled) nie mówi PRZYCZYNY: w trakcie
+// parzenia czy z braku ziarna. Bez tego rozróżnienia dokupienie ziarna w
+// trakcie, gdy przycisk był zablokowany z braku zapasu, nigdy by go z powrotem
+// nie odblokowało.
+const brewingInProgress = { lab: false, comp: false };
+
 const SLIDERS = [
     { key: 'dose',  label: 'Doza kawy',      min: 10,  max: 30,   step: 0.5, unit: 'g',  accent: 'accent-amber-700' },
     { key: 'water', label: 'Woda',           min: 150, max: 450,  step: 5,   unit: 'g',  accent: 'accent-blue-600' },
@@ -105,6 +112,7 @@ function buildControlsSkeleton(mode) {
             '<div class="flex justify-between"><span class="text-stone-500">Brew ratio</span><span id="' + mode + '-out-ratio" class="font-bold"></span></div>' +
             '<div class="flex justify-between"><span class="text-stone-500">Szacowany czas kontaktu</span><span id="' + mode + '-out-time" class="font-bold"></span></div>' +
             '<div class="flex justify-between"><span class="text-stone-500">Udział pyłu (&lt;200 µm)</span><span id="' + mode + '-out-fines" class="font-bold"></span></div>' +
+            '<div class="flex justify-between"><span class="text-stone-500">Zapas ziarna</span><span id="' + mode + '-out-coffee" class="font-bold"></span></div>' +
             '</div>';
     return html;
 }
@@ -137,13 +145,36 @@ function refreshReadouts(mode) {
         fEl.textContent = fines.toFixed(1) + '%';
         fEl.className = 'font-bold ' + (fines > 12 ? 'text-red-600' : fines > 6 ? 'text-amber-600' : 'text-emerald-600');
     }
+
+    // Ziarno (Etap 5): pokaż zapas i wylicz PEŁNY stan przycisków z dwóch
+    // niezależnych powodów blokady — trwającej animacji parzenia i braku
+    // zapasu — żeby dokupienie ziarna zawsze odblokowywało przycisk z powrotem.
+    const enoughCoffee = PlayerProfile.hasEnoughActiveCoffee(p.dose);
+    const cEl = document.getElementById(mode + '-out-coffee');
+    if (cEl) {
+        cEl.textContent = PlayerProfile.getCurrentCoffeeStock() + ' g (' + coffee.name + ')';
+        cEl.className = 'font-bold ' + (enoughCoffee ? '' : 'text-red-600');
+    }
+    const brewBtn = document.getElementById('btn-brew-' + mode);
+    const pourBtn = document.getElementById('btn-pour-' + mode);
+    const disabled = brewingInProgress[mode] || !enoughCoffee;
+    if (brewBtn) brewBtn.disabled = disabled;
+    if (pourBtn) pourBtn.disabled = disabled;
+
     drawChart(mode, null, ratio);
 }
 
 // ---------- Pipeline parzenia (Lab i Konkursy różnią się tylko wynikiem) ----------
+function insufficientCoffeeModal(dose) {
+    showModal('Brak ziarna', 'Zabrakło ' + currentCoffee().name + ' w zapasie (potrzeba ' + dose + ' g, masz ' + PlayerProfile.getCurrentCoffeeStock() + ' g). Dokup w Sklepie.', 'fa-seedling', 'text-red-500');
+}
+
 // Uruchamia mini-grę; jej wynik nadpisuje wodę, agitację i równomierność.
+// Zapas sprawdzany PRZED mini-grą — bez sensu grać w nalewanie, żeby na końcu
+// dowiedzieć się, że nie było z czego parzyć.
 function launchPour(mode) {
     const p = params[mode];
+    if (!PlayerProfile.hasEnoughActiveCoffee(p.dose)) { insufficientCoffeeModal(p.dose); return; }
     const eq = currentEquipment();
     PourMinigame.open({
         dose: p.dose, water: p.water, grind: p.grind,
@@ -155,7 +186,9 @@ function launchPour(mode) {
 }
 
 function startBrewing(mode, pour) {
+    if (!PlayerProfile.hasEnoughActiveCoffee(params[mode].dose)) { insufficientCoffeeModal(params[mode].dose); return; }
     if (!pour) PlayerProfile.setLastPour(mode, null);
+    brewingInProgress[mode] = true;
     const btnBrew = document.getElementById('btn-brew-' + mode);
     const btnPour = document.getElementById('btn-pour-' + mode);
     const cont = document.getElementById(mode + '-progress-container');
@@ -172,11 +205,11 @@ function startBrewing(mode, pour) {
         if (prog >= 100) {
             clearInterval(iv);
             cont.classList.add('hidden');
-            if (btnBrew) btnBrew.disabled = false;
-            if (btnPour) btnPour.disabled = false;
+            brewingInProgress[mode] = false;
             const seed = PlayerProfile.nextSeed(2654435761);
             const p = Object.assign({}, params[mode]);
             if (pour) { p.water = pour.water; p.agitation = pour.agitation; p.evenness = pour.evenness; }
+            PlayerProfile.consumeActiveCoffee(p.dose);
             const result = BrewEngine.brew(p, currentEquipment(), currentCoffee(), seed);
             result.pour = pour || null;
             PlayerProfile.pushHistory(mode, { ey: result.ey, tds: result.tds });
@@ -184,6 +217,7 @@ function startBrewing(mode, pour) {
             if (mode === 'lab') Lab.showResult(result);
             else Konkursy.showResult(result);
             drawChart(mode, result, params[mode].water / params[mode].dose);
+            refreshReadouts(mode);
         }
     }, 40);
 }
