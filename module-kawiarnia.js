@@ -20,9 +20,13 @@ const Kawiarnia = (function () {
     }
 
     function completeOrder(btn, cont) {
-        // Zarobek liczony z FAKTYCZNEJ jakości naparu przy domyślnym, rozsądnym nastawie.
+        // Zarobek liczony z FAKTYCZNEJ jakości naparu przy aktywnej recepturze
+        // z Laboratorium (albo domyślnym, rozsądnym nastawie, gdy gracz jeszcze
+        // żadnej nie zapisał).
+        const recipe = PlayerProfile.getActiveRecipe();
+        const brewParams = recipe ? recipe.params : { dose: 15, water: 250, grind: 700, temp: 93 };
         const seed = PlayerProfile.nextSeed(2246822519);
-        const r = BrewEngine.brew({ dose: 15, water: 250, grind: 700, temp: 93 }, currentEquipment(), currentCoffee(), seed);
+        const r = BrewEngine.brew(brewParams, currentEquipment(), currentCoffee(), seed);
         const q = r.sensory.pct;
         const money = Math.round(8 + 26 * q);
         const rep = Math.max(1, Math.round(6 * q));
@@ -33,7 +37,7 @@ const Kawiarnia = (function () {
         if (log.children.length === 1 && log.children[0].classList.contains('italic')) log.innerHTML = '';
         const li = document.createElement('li');
         li.className = 'border-b border-stone-100 pb-1 text-xs';
-        li.innerHTML = '<span class="text-stone-800 font-semibold">Przelew ' + (q * 100).toFixed(0) + '%</span> ' +
+        li.innerHTML = '<span class="text-stone-800 font-semibold">Przelew' + (recipe ? ' (' + recipe.name + ')' : '') + ' ' + (q * 100).toFixed(0) + '%</span> ' +
             '<span class="text-emerald-600">+' + money + ' PLN</span> <span class="text-amber-600">+' + rep + ' Rep</span>';
         log.prepend(li);
         if (log.children.length > 6) log.lastChild.remove();
@@ -43,12 +47,14 @@ const Kawiarnia = (function () {
 
     function renderEquipmentPanel() {
         const eq = currentEquipment(), coffee = currentCoffee();
+        const recipe = PlayerProfile.getActiveRecipe();
         const panel = document.getElementById('eq-panel');
         const rows = [
             ['Młynek', eq.grinder.name, 'σg ' + eq.grinder.gsd.toFixed(2)],
             ['Zaparzacz', eq.dripper.name, 'przepływ ×' + eq.dripper.flowMod.toFixed(2)],
             ['Czajnik', eq.kettle.name, 'dryf ±' + eq.kettle.tempDrift + '°C'],
-            ['Ziarno', coffee.name, 'jakość ' + coffee.quality.toFixed(2)]
+            ['Ziarno', coffee.name, 'jakość ' + coffee.quality.toFixed(2)],
+            ['Aktywna receptura', recipe ? recipe.name : 'domyślny nastaw', recipe ? ('EY ' + recipe.result.ey + '%') : '15g/250g/700µm/93°C']
         ];
         panel.innerHTML = rows.map(r =>
             '<div class="bg-stone-100 p-3 rounded border border-stone-200">' +

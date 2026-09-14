@@ -20,6 +20,7 @@ const PlayerProfile = (function () {
         history: { lab: [], comp: [] },
         lastPour: { lab: null, comp: null },
         recipes: [],
+        activeRecipeId: null,
         seedCounter: 1
     };
 
@@ -99,10 +100,28 @@ const PlayerProfile = (function () {
     function isCompWon() { return state.compWon; }
     function setCompWon() { state.compWon = true; emit('comp-won'); }
 
-    // ---------------- Receptury (pod przyszły Etap 3: Lab -> Kawiarnia) ----------------
+    // ---------------- Receptury (Etap 3: Lab -> Kawiarnia) ----------------
+    // Receptura to zapamiętany NASTAW (dose/water/grind/temp), nie technika ręki
+    // z mini-gry — Kawiarnia zostaje automatycznym parzeniem, tylko już nie na
+    // sztywno wpisanym w kod nastawie.
     function getRecipes() { return state.recipes; }
+    function getActiveRecipe() {
+        return state.recipes.find(r => r.id === state.activeRecipeId) || null;
+    }
     function saveRecipe(name, brewParams, result) {
-        state.recipes.push({ name: name, params: brewParams, result: result, ts: Date.now() });
+        const id = Date.now();
+        state.recipes.push({
+            id: id,
+            name: name,
+            params: { dose: brewParams.dose, water: brewParams.water, grind: brewParams.grind, temp: brewParams.temp },
+            result: result,
+            ts: id
+        });
+        if (state.activeRecipeId === null) state.activeRecipeId = id;
+        emit('recipes');
+    }
+    function setActiveRecipe(id) {
+        state.activeRecipeId = id;
         emit('recipes');
     }
 
@@ -120,7 +139,7 @@ const PlayerProfile = (function () {
         getLastPour, setLastPour,
         getBest, updateBest,
         isCompUnlocked, unlockComp, isCompWon, setCompWon,
-        getRecipes, saveRecipe,
+        getRecipes, getActiveRecipe, saveRecipe, setActiveRecipe,
         nextSeed,
         save, load
     };
