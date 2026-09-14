@@ -72,7 +72,15 @@ const database = {
         { id: 'c4', type: 'coffee', name: 'Kolumbia Gesha 90 (lot konkursowy)', price: 900, bagSize: 250, icon: 'fa-award',
           quality: 1.00, eyMax: 28.0, acidity: 1.05, body: 0.90, daysOffRoast: 9,
           desc: 'Mikrolot na aukcji. Wąskie okno ekstrakcji, ale sufit smaku bardzo wysoko.',
-          effect: 'Jakość 1,00 · karze każdy błąd, nagradza precyzję.' }
+          effect: 'Jakość 1,00 · karze każdy błąd, nagradza precyzję.' },
+        // Pusty slot na starcie (Etap 6) — Sklep pokazuje go jako zablokowany,
+        // dopóki gracz nie wygra `unlockedBy`. Tańsza niż aukcyjna Gesha, bo to
+        // już własna produkcja, nie zakup od pośrednika.
+        { id: 'c5', type: 'coffee', name: 'Własna Marka — Selekcja Mistrzowska', price: 400, bagSize: 250, icon: 'fa-crown',
+          unlockedBy: 'comp3',
+          quality: 1.05, eyMax: 27.5, acidity: 1.00, body: 0.95, daysOffRoast: 6,
+          desc: 'Twój własny wypał, dopracowany po latach kariery. Zero kompromisów w selekcji ziarna.',
+          effect: 'Jakość 1,05 · najwyższy sufit smaku w grze, za ułamek ceny aukcyjnej Geshy.' }
     ]
 };
 
@@ -101,7 +109,35 @@ const SENSORY_LABELS = {
 };
 
 const REQ_REP_COMP = 50;
-const COMP_THRESHOLD = 0.68;
+
+// Drabinka konkursów (Etap 6). Odblokowanie szczebla 1 to próg reputacji
+// (REQ_REP_COMP, ten sam co dawniej gate'ował nawigację); każdy kolejny
+// szczebel odblokowuje WYŁĄCZNIE wygrana poprzedniego — bez dodatkowego progu
+// sławy, żeby nie dało się zablokować drabinki (sława to jednorazowa nagroda
+// za zwycięstwo, nie odnawialny zasób, więc próg wyższy niż suma dotychczas
+// zdobytej sławy byłby ślepym zaułkiem). `minCoffeeQuality` to "trudniejsze
+// ziarno" z wizji — sprawdzane przy starcie prezentacji, nie przy odblokowaniu
+// szczebla na drabince. `threshold` to coraz surowsi sędziowie (węższe okno
+// Golden Cup). `sponsorIncome` dolicza się codziennie przy "Zakończ dzień"
+// za KAŻDY wygrany szczebel, który go daje (PlayerProfile.getSponsorIncome).
+const COMPETITIONS = [
+    { id: 'comp1', tier: 1, name: 'Otwarte Mistrzostwa Świdnicy', place: 'Świdnica',
+      reqRep: REQ_REP_COMP, minCoffeeQuality: 0.55, threshold: 0.68,
+      rewardRep: 25, rewardFame: 5, sponsorIncome: 0, unlocksBrand: false,
+      desc: 'Pierwszy krok kariery. Panel trzech sędziów, standardowe okno Golden Cup.' },
+    { id: 'comp2', tier: 2, name: 'Puchar Dolnego Śląska', place: 'Wrocław',
+      minCoffeeQuality: 0.76, threshold: 0.72,
+      rewardRep: 15, rewardFame: 40, sponsorIncome: 8, unlocksBrand: false,
+      desc: 'Sędziowie oceniają węższe okno EY. Wygrana otwiera pierwszy kontrakt reklamowy — pasywny dochód od następnego dnia.' },
+    { id: 'comp3', tier: 3, name: 'Mistrzostwa Polski Baristów', place: 'Warszawa',
+      minCoffeeQuality: 0.92, threshold: 0.76,
+      rewardRep: 10, rewardFame: 120, sponsorIncome: 15, unlocksBrand: true,
+      desc: 'Krajowa czołówka. Zwycięstwo otwiera slot na własną markę kawy w Sklepie.' },
+    { id: 'comp4', tier: 4, name: 'World Brewers Cup', place: 'międzynarodowo',
+      minCoffeeQuality: 1.00, threshold: 0.80,
+      rewardRep: 5, rewardFame: 400, sponsorIncome: 0, unlocksBrand: false, isFinal: true,
+      desc: 'Cel finałowy kariery. Najlepsi baryści świata, zero marginesu błędu.' }
+];
 
 const BARMAN_HIRE_COST = 250; // jednorazowo
 const BARMAN_WAGE = 15;       // PLN/dzień, doliczane do czynszu przy "Zakończ dzień"

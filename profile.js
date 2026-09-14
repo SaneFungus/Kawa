@@ -14,7 +14,7 @@ const PlayerProfile = (function () {
 
     const state = {
         money: 0, rep: 0, fame: 0,
-        compUnlocked: false, compWon: false, best: null,
+        compUnlocked: false, compsWon: [], best: null,
         inventory: { grinder: 'g1', dripper: 'd1', kettle: 'k1', coffee: 'c1' },
         owned: ['g1', 'd1', 'k1'],
         coffeeStock: { c1: 250 },
@@ -122,8 +122,30 @@ const PlayerProfile = (function () {
     // ---------------- Konkurs ----------------
     function isCompUnlocked() { return state.compUnlocked; }
     function unlockComp() { state.compUnlocked = true; emit('comp-unlocked'); }
-    function isCompWon() { return state.compWon; }
-    function setCompWon() { state.compWon = true; emit('comp-won'); }
+
+    // ---------------- Drabinka konkursów (Etap 6) ----------------
+    // Nagroda (reputacja/sława) przyznawana WYŁĄCZNIE za pierwsze zwycięstwo
+    // danego szczebla — powtórne wygrane to tylko satysfakcja/rekord, bez
+    // farmienia sławy. `winComp` zwraca, czy to było pierwsze zwycięstwo, żeby
+    // wołający mógł dobrać treść modala.
+    function hasWonComp(id) { return state.compsWon.includes(id); }
+    function getCompsWon() { return state.compsWon; }
+    function winComp(id, rewardRep, rewardFame) {
+        const firstWin = !state.compsWon.includes(id);
+        if (firstWin) {
+            state.compsWon.push(id);
+            if (rewardRep) addReputation(rewardRep);
+            if (rewardFame) addFame(rewardFame);
+            emit('comp-won');
+        }
+        return firstWin;
+    }
+    // Suma `sponsorIncome` ze WSZYSTKICH dotąd wygranych szczebli, które go
+    // dają — doliczana codziennie w endDay(). Kilka wygranych szczebli =
+    // kilka kontraktów naraz, nie zastępowanie jednego drugim.
+    function getSponsorIncome() {
+        return COMPETITIONS.reduce((sum, t) => sum + (hasWonComp(t.id) ? (t.sponsorIncome || 0) : 0), 0);
+    }
 
     // ---------------- Receptury (Etap 3: Lab -> Kawiarnia) ----------------
     // Receptura to zapamiętany NASTAW (dose/water/grind/temp), nie technika ręki
@@ -160,12 +182,14 @@ const PlayerProfile = (function () {
         emit('day-stats');
     }
     function endDay() {
+        const sponsor = getSponsorIncome();
+        state.money += sponsor;
         const rent = getLocation().rent;
         const wage = state.hasBarman ? BARMAN_WAGE : 0;
         const due = rent + wage;
         const paid = Math.min(due, state.money);
         state.money -= paid;
-        const summary = { day: state.day, stats: Object.assign({}, state.dayStats), rent: rent, wage: wage, paid: paid };
+        const summary = { day: state.day, stats: Object.assign({}, state.dayStats), rent: rent, wage: wage, paid: paid, sponsor: sponsor };
         state.dayStats = { customers: 0, earned: 0 };
         state.day++;
         emit('day-ended');
@@ -202,7 +226,7 @@ const PlayerProfile = (function () {
         getHistory, pushHistory, clearHistory,
         getLastPour, setLastPour,
         getBest, updateBest,
-        isCompUnlocked, unlockComp, isCompWon, setCompWon,
+        isCompUnlocked, unlockComp, hasWonComp, getCompsWon, winComp, getSponsorIncome,
         getRecipes, getActiveRecipe, saveRecipe, setActiveRecipe,
         getLocation, getDay, getDayStats, recordDaySale, endDay, moveTo, dayCapReached,
         hasBarman, hireBarman,

@@ -39,6 +39,10 @@
                 <span id="ui-rep" class="text-amber-400">0 pkt</span>
             </div>
             <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
+                <span class="text-stone-300 text-xs">Sława</span>
+                <span id="ui-fame" class="text-fuchsia-400">0 pkt</span>
+            </div>
+            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
                 <span class="text-stone-300 text-xs">Rekord</span>
                 <span id="ui-best" class="text-sky-400">—</span>
             </div>
@@ -135,11 +139,18 @@
 
     <!-- ====================== KONKURS ====================== -->
     <section id="view-konkurs" class="max-w-6xl mx-auto space-y-6 view-hidden">
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-stone-200">
+            <h3 class="font-bold text-stone-700 mb-3 text-sm uppercase tracking-wider"><i class="fas fa-ranking-star mr-2"></i>Drabinka kariery</h3>
+            <div id="comp-ladder" class="space-y-2"></div>
+        </div>
         <div class="bg-gradient-to-r from-stone-800 to-stone-900 text-white p-8 rounded-xl shadow-lg relative overflow-hidden">
             <div class="relative z-10">
-                <span class="bg-amber-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider">Szczebel 1</span>
-                <h2 class="text-3xl mt-2 mb-4 serif text-amber-400">Puchar Kawiarni Sąsiedzkiej</h2>
-                <p class="mb-4 text-stone-300 max-w-2xl text-sm">Panel trzech sędziów ocenia napar w siedmiu kategoriach sensorycznych. Aby zdobyć puchar, potrzebujesz <strong class="text-amber-400">min. 68% punktów</strong>. Trafienie w okno EY to warunek konieczny, ale nie wystarczający — liczy się też słodycz, balans i brak ściągalności.</p>
+                <span id="comp-hero-tier" class="bg-amber-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider"></span>
+                <h2 id="comp-hero-name" class="text-3xl mt-2 mb-1 serif text-amber-400"></h2>
+                <p id="comp-hero-place" class="text-stone-400 text-xs mb-3"></p>
+                <p id="comp-hero-desc" class="mb-3 text-stone-300 max-w-2xl text-sm"></p>
+                <p class="text-stone-300 text-sm">Próg zwycięstwa: <strong id="comp-hero-threshold" class="text-amber-400"></strong> sumy karty sensorycznej.</p>
+                <p id="comp-hero-coffee-req" class="text-xs mt-2"></p>
             </div>
             <i class="fas fa-award absolute -right-10 -top-10 text-[200px] text-white opacity-5 rotate-12"></i>
         </div>

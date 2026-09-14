@@ -7,6 +7,7 @@
 function updateTopBar() {
     setText('ui-money', PlayerProfile.getMoney() + ' PLN');
     setText('ui-rep', PlayerProfile.getReputation() + ' pkt');
+    setText('ui-fame', PlayerProfile.getFame() + ' pkt');
     const best = PlayerProfile.getBest();
     setText('ui-best', best === null ? '—' : best.toFixed(1) + '/63');
     setText('ui-day', PlayerProfile.getDay());
@@ -17,11 +18,12 @@ function updateTopBar() {
         l.className = 'absolute top-1 right-3 text-xs text-emerald-400';
         l.innerHTML = '<i class="fas fa-unlock"></i>';
         document.getElementById('nav-konkurs').classList.remove('opacity-50');
-        showModal('Nowy etap', 'Masz ' + REQ_REP_COMP + ' punktów reputacji — możesz zapisać się na Puchar Kawiarni Sąsiedzkiej.', 'fa-trophy', 'text-amber-500');
+        showModal('Nowy etap', 'Masz ' + REQ_REP_COMP + ' punktów reputacji — możesz zapisać się na Otwarte Mistrzostwa Świdnicy.', 'fa-trophy', 'text-amber-500');
     }
 
     Kawiarnia.renderEquipmentPanel();
     Kawiarnia.renderLocationPanel();
+    Konkursy.refresh();
 }
 
 function switchView(view) {
@@ -37,7 +39,7 @@ function switchView(view) {
     document.getElementById('nav-' + view).classList.add('border-amber-500', 'text-white');
     if (view === 'sklep') Sklep.render();
     if (view === 'laboratorium') refreshReadouts('lab');
-    if (view === 'konkurs') refreshReadouts('comp');
+    if (view === 'konkurs') Konkursy.refresh();
 }
 
 window.onload = function () {

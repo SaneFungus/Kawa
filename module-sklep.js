@@ -46,6 +46,7 @@ const Sklep = (function () {
     // własność. Dokup i wybór aktywnego rodzaju to dwie osobne akcje, bo
     // dokupienie zapasu nie musi oznaczać przełączenia się na ten rodzaj.
     function renderCoffeeCard(item) {
+        if (item.unlockedBy && !PlayerProfile.hasWonComp(item.unlockedBy)) return renderLockedCoffeeSlot(item);
         const stock = PlayerProfile.getCoffeeStock(item.id);
         const equipped = PlayerProfile.getInventory().coffee === item.id;
 
@@ -67,6 +68,18 @@ const Sklep = (function () {
             '<p class="text-[11px] text-amber-800 bg-amber-50 rounded px-2 py-1 mb-2 border border-amber-100"><i class="fas fa-sliders mr-1"></i>' + item.effect + '</p>' +
             '<p class="text-[11px] mono mb-4 ' + (stock > 0 ? 'text-stone-600' : 'text-red-600 font-semibold') + '"><i class="fas fa-weight-hanging mr-1"></i>Zapas: ' + stock + ' g</p>' +
             '<div class="flex gap-2 mt-auto">' + equipBtn + buyBtn + '</div></div>';
+    }
+
+    // Pusty slot (Etap 6, wizja §5): "pojawia się jako towar dopiero po
+    // nagrodzie z Konkursów" — więc dopóki `unlockedBy` nie jest wygrane,
+    // karta nie pokazuje żadnych statystyk ani cen, tylko warunek odblokowania.
+    function renderLockedCoffeeSlot(item) {
+        const comp = COMPETITIONS.find(c => c.id === item.unlockedBy);
+        return '<div class="bg-stone-100 p-4 rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center text-center text-stone-400 min-h-[180px]">' +
+            '<i class="fas fa-lock text-2xl mb-2"></i>' +
+            '<p class="text-xs font-semibold">Pusty slot na własną markę</p>' +
+            '<p class="text-[11px] mt-1">Odblokowanie: wygraj<br><strong>' + (comp ? comp.name : 'nieznany konkurs') + '</strong></p>' +
+            '</div>';
     }
 
     function buy(cat, id) {

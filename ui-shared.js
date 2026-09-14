@@ -155,9 +155,14 @@ function refreshReadouts(mode) {
         cEl.textContent = PlayerProfile.getCurrentCoffeeStock() + ' g (' + coffee.name + ')';
         cEl.className = 'font-bold ' + (enoughCoffee ? '' : 'text-red-600');
     }
+    // Konkurs (Etap 6) dokłada trzeci, niezależny powód blokady: za słabe
+    // ziarno na dany szczebel. Liczony tu, w JEDNYM miejscu z pełnym
+    // przeliczeniem obu kierunków, żeby dokup/zmiana ziarna zawsze poprawnie
+    // odblokowywały przycisk z powrotem (ten sam błąd co przy zapasie w Etapie 5).
+    const entryOk = mode !== 'comp' || Konkursy.checkEntry().ok;
     const brewBtn = document.getElementById('btn-brew-' + mode);
     const pourBtn = document.getElementById('btn-pour-' + mode);
-    const disabled = brewingInProgress[mode] || !enoughCoffee;
+    const disabled = brewingInProgress[mode] || !enoughCoffee || !entryOk;
     if (brewBtn) brewBtn.disabled = disabled;
     if (pourBtn) pourBtn.disabled = disabled;
 
@@ -175,6 +180,10 @@ function insufficientCoffeeModal(dose) {
 function launchPour(mode) {
     const p = params[mode];
     if (!PlayerProfile.hasEnoughActiveCoffee(p.dose)) { insufficientCoffeeModal(p.dose); return; }
+    if (mode === 'comp') {
+        const entry = Konkursy.checkEntry();
+        if (!entry.ok) { showModal('Za słabe ziarno', entry.reason, 'fa-seedling', 'text-red-500'); return; }
+    }
     const eq = currentEquipment();
     PourMinigame.open({
         dose: p.dose, water: p.water, grind: p.grind,

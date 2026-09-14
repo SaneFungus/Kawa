@@ -201,10 +201,11 @@ const Kawiarnia = (function () {
 
     function endDay() {
         const r = PlayerProfile.endDay();
-        const net = r.stats.earned - r.paid;
+        const net = r.stats.earned + r.sponsor - r.paid;
         const due = r.rent + r.wage;
         showModal('Dzień ' + r.day + ' zakończony',
             'Obsłużono ' + r.stats.customers + ' klientów, zarobek dnia ' + r.stats.earned + ' PLN. ' +
+            (r.sponsor > 0 ? 'Sponsoring: +' + r.sponsor + ' PLN. ' : '') +
             'Czynsz ' + r.rent + ' PLN' + (r.wage > 0 ? ' + barman ' + r.wage + ' PLN' : '') +
             (r.paid < due ? ' (zapłacono tylko ' + r.paid + ' PLN — nie wystarczyło budżetu)' : '') + '. ' +
             'Saldo netto: ' + (net >= 0 ? '+' : '') + net + ' PLN.',
