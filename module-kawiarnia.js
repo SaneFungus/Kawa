@@ -28,7 +28,7 @@ const Kawiarnia = (function () {
         const seed = PlayerProfile.nextSeed(2246822519);
         const r = BrewEngine.brew(brewParams, currentEquipment(), currentCoffee(), seed);
         const q = r.sensory.pct;
-        const money = Math.round((8 + 26 * q) * PlayerProfile.getLocation().customerValueMult);
+        const money = Math.round(PlayerProfile.getLocation().cupPrice * (0.5 + 0.8 * q));
         const rep = Math.max(1, Math.round(6 * q));
         PlayerProfile.addMoney(money);
         PlayerProfile.addReputation(rep);
@@ -43,7 +43,25 @@ const Kawiarnia = (function () {
         log.prepend(li);
         if (log.children.length > 6) log.lastChild.remove();
 
-        setTimeout(() => { cont.classList.add('hidden'); btn.disabled = false; }, 250);
+        setTimeout(() => { cont.classList.add('hidden'); updateWorkButtonState(); }, 250);
+    }
+
+    // Limit klientów na dzień (`dailyCap` z LOCATIONS) — bez niego czynsz przy
+    // "Zakończ dzień" byłby czystym kosztem: nic nie stałoby na przeszkodzie,
+    // żeby nigdy dnia nie kończyć.
+    function updateWorkButtonState() {
+        const btn = document.getElementById('btn-work');
+        const status = document.getElementById('queue-status');
+        if (!btn) return;
+        const cap = PlayerProfile.getLocation().dailyCap;
+        const left = cap - PlayerProfile.getDayStats().customers;
+        if (left <= 0) {
+            btn.disabled = true;
+            status.textContent = 'Kolejka na dziś zamknięta — zakończ dzień, żeby wrócić do pracy.';
+        } else {
+            btn.disabled = false;
+            status.textContent = 'Możesz jeszcze obsłużyć ' + left + ' klientów dzisiaj.';
+        }
     }
 
     function renderEquipmentPanel() {
@@ -77,8 +95,8 @@ const Kawiarnia = (function () {
             '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
             '<div class="bg-stone-100 p-4 rounded border border-stone-200 text-sm">' +
             '<strong class="text-stone-800 block mb-1">' + loc.name + ', ' + loc.place + '</strong>' +
-            '<span class="text-stone-600">Dzień ' + PlayerProfile.getDay() + ' · dziś: ' + stats.customers + ' klientów, ' + stats.earned + ' PLN</span><br>' +
-            '<span class="text-stone-600">Czynsz dzienny: <strong class="text-red-700">' + loc.rent + ' PLN</strong></span>' +
+            '<span class="text-stone-600">Dzień ' + PlayerProfile.getDay() + ' · dziś: ' + stats.customers + '/' + loc.dailyCap + ' klientów, ' + stats.earned + ' PLN</span><br>' +
+            '<span class="text-stone-600">Czynsz dzienny: <strong class="text-red-700">' + loc.rent + ' PLN</strong> · Cena filiżanki: <strong>' + loc.cupPrice + ' PLN</strong></span>' +
             '<button onclick="Kawiarnia.endDay()" class="w-full mt-3 bg-stone-800 hover:bg-black text-white font-semibold py-2 rounded text-sm"><i class="fas fa-moon mr-2"></i>Zakończ dzień</button>' +
             '</div>';
 
@@ -88,7 +106,7 @@ const Kawiarnia = (function () {
             html += '<div class="bg-amber-50 p-4 rounded border border-amber-200 text-sm">' +
                 '<strong class="text-stone-800 block mb-1">' + next.name + ', ' + next.place + '</strong>' +
                 '<p class="text-stone-600 text-xs mb-2">' + next.desc + '</p>' +
-                '<span class="text-stone-600">Czynsz tam: ' + next.rent + ' PLN · zarobek ×' + next.customerValueMult.toFixed(2) + '</span>' +
+                '<span class="text-stone-600">Czynsz tam: ' + next.rent + ' PLN · cena filiżanki ' + next.cupPrice + ' PLN · limit ' + next.dailyCap + ' klientów/dzień</span>' +
                 '<button onclick="Kawiarnia.move(\'' + next.id + '\')" ' + (can ? '' : 'disabled title="Brakuje ' + missing + ' PLN"') +
                 ' class="w-full mt-3 font-semibold py-2 rounded text-sm ' + (can ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed') + '">' +
                 'Przenieś się (' + next.moveCost + ' PLN)</button>' +
@@ -97,6 +115,7 @@ const Kawiarnia = (function () {
         html += '</div>';
 
         document.getElementById('location-panel').innerHTML = html;
+        updateWorkButtonState();
     }
 
     function nextLocation(loc) {

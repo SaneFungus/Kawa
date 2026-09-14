@@ -38,8 +38,8 @@ proporcjonalnie do jakości i liczby klientów.
 
 | Etap | Miejsce | Charakter |
 |---|---|---|
-| 1 | Stragan/kiosk, Świdnica | 1 stanowisko, mikroskopijny czynsz |
-| 2 | Kawiarnia Osiedlowa, Świdnica | dzisiejszy punkt startowy |
+| 1 | Stragan/kiosk, Świdnica | dzisiejszy punkt startowy, 1 stanowisko, mikroskopijny czynsz |
+| 2 | Kawiarnia Osiedlowa, Świdnica | pierwszy awans, stały lokal |
 | 3 | Lokal w centrum Wrocławia | wyższy czynsz, więcej klientów, 2. stanowisko, można zatrudnić barmana |
 | 4 | Własna palarnia + kawiarnia flagowa | najwyższy czynsz i ryzyko, sprzedaż własnej marki |
 
@@ -94,13 +94,15 @@ sponsorów i własną markę). Obie mają osobne, wciąż rosnące zastosowanie 
 
 Fotograf z Świdnicy, pracuje dla portalu Urzędu Miasta Wrocławia. Podczas
 fotografowania wydarzenia miejskiego pierwszy raz pije naprawdę dobrze
-zaparzoną kawę przelewową — olśnienie. Zaczyna dorabiać za barem w osiedlowej
-kawiarni w Świdnicy (dzisiejszy punkt startowy gry, tylko z twarzą i miejscem).
+zaparzoną kawę przelewową — olśnienie. Zaczyna dorabiać przy budce z kawą
+w Świdnicy (dzisiejszy punkt startowy gry, tylko z twarzą i miejscem) —
+przeprowadzka do osiedlowej kawiarni to już jego pierwszy sukces, nie punkt
+zerowy.
 
 **Pięć aktów** spiętych z drabinką konkursów i lokalu:
 
-1. **Prolog — Olśnienie.** Fotograf odkrywa kawę, zaczyna pracę w Kawiarni
-   Osiedlowej.
+1. **Prolog — Olśnienie.** Fotograf odkrywa kawę, zaczyna pracę przy budce
+   z kawą.
 2. **Nauka rzemiosła.** Mentorka — Pani Basia, doświadczona baristka — uczy go,
    że parzenie to nauka, nie przypadek (otwiera Laboratorium).
 3. **Pierwszy konkurs.** Otwarte Mistrzostwa Świdnicy. Wygrana albo porażka —

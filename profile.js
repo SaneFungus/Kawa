@@ -22,7 +22,7 @@ const PlayerProfile = (function () {
         recipes: [],
         activeRecipeId: null,
         seedCounter: 1,
-        locationId: 'l2',
+        locationId: 'l1',
         day: 1,
         dayStats: { customers: 0, earned: 0 }
     };
@@ -147,6 +147,7 @@ const PlayerProfile = (function () {
         emit('day-ended');
         return summary;
     }
+    function dayCapReached() { return state.dayStats.customers >= getLocation().dailyCap; }
     function moveTo(id) {
         const loc = LOCATIONS.find(l => l.id === id);
         if (!loc) return false;
@@ -171,7 +172,7 @@ const PlayerProfile = (function () {
         getBest, updateBest,
         isCompUnlocked, unlockComp, isCompWon, setCompWon,
         getRecipes, getActiveRecipe, saveRecipe, setActiveRecipe,
-        getLocation, getDay, getDayStats, recordDaySale, endDay, moveTo,
+        getLocation, getDay, getDayStats, recordDaySale, endDay, moveTo, dayCapReached,
         nextSeed,
         save, load
     };
