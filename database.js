@@ -78,13 +78,13 @@ const database = {
 // `stations` na razie tylko zapisane, nieużywane — konsumuje je Etap 4b.
 const LOCATIONS = [
     { id: 'l1', tier: 1, name: 'Budka z kawą', place: 'Świdnica',
-      cupPrice: 6, dailyCap: 4, rent: 5, moveCost: 0, stations: 1,
+      cupPrice: 6, dailyCap: 6, rent: 5, moveCost: 0, stations: 1,
       desc: 'Zaczynasz od zera. Mikroskopijny ruch, ale też mikroskopijne ryzyko.' },
     { id: 'l2', tier: 2, name: 'Kawiarnia Osiedlowa', place: 'Świdnica',
-      cupPrice: 10, dailyCap: 10, rent: 20, moveCost: 80, stations: 1,
+      cupPrice: 10, dailyCap: 12, rent: 20, moveCost: 80, stations: 1,
       desc: 'Stały lokal, więcej stałych klientów.' },
     { id: 'l3', tier: 3, name: 'Lokal w centrum Wrocławia', place: 'Wrocław',
-      cupPrice: 16, dailyCap: 20, rent: 55, moveCost: 300, stations: 2,
+      cupPrice: 16, dailyCap: 25, rent: 55, moveCost: 300, stations: 2,
       desc: 'Więcej klientów i wyższe ceny, ale i wyższy czynsz. Drugie stanowisko i barman — Etap 4b.' }
 ];
 
