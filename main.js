@@ -41,6 +41,7 @@ function switchView(view) {
 }
 
 window.onload = function () {
+    Kawiarnia.renderStations();
     Lab.buildControls();
     Konkursy.buildControls();
     renderSensoryPlaceholder('lab-sensory');

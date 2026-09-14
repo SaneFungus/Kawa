@@ -97,3 +97,6 @@ const SENSORY_LABELS = {
 
 const REQ_REP_COMP = 50;
 const COMP_THRESHOLD = 0.68;
+
+const BARMAN_HIRE_COST = 250; // jednorazowo
+const BARMAN_WAGE = 15;       // PLN/dzień, doliczane do czynszu przy "Zakończ dzień"

@@ -1,25 +1,26 @@
 // =============================================================================
 // module-kawiarnia.js — moduł Kawiarni.
-// Obsługa klientów przy stałym, "rozsądnym" nastawie + panel aktualnego setupu.
+// Obsługa klientów na N stanowiskach (Etap 4b) + panel aktualnego setupu.
 // =============================================================================
 const Kawiarnia = (function () {
 
-    function serveCustomer() {
-        const btn = document.getElementById('btn-work');
-        const cont = document.getElementById('work-progress-container');
-        const bar = document.getElementById('work-progress');
-        btn.disabled = true;
+    function serveCustomer(i, isBarman) {
+        const btn = document.getElementById('btn-work-' + i);
+        const cont = document.getElementById('work-progress-container-' + i);
+        const bar = document.getElementById('work-progress-' + i);
+        if (!cont || !cont.classList.contains('hidden')) return; // stanowisko już zajęte
+        if (btn) btn.disabled = true;
         cont.classList.remove('hidden');
         bar.style.width = '0%';
         let p = 0;
         const iv = setInterval(() => {
             p += 5;
             bar.style.width = p + '%';
-            if (p >= 100) { clearInterval(iv); completeOrder(btn, cont); }
+            if (p >= 100) { clearInterval(iv); completeOrder(i, cont, isBarman); }
         }, 80);
     }
 
-    function completeOrder(btn, cont) {
+    function completeOrder(i, cont, isBarman) {
         // Zarobek liczony z FAKTYCZNEJ jakości naparu przy aktywnej recepturze
         // z Laboratorium (albo domyślnym, rozsądnym nastawie, gdy gracz jeszcze
         // żadnej nie zapisał).
@@ -38,31 +39,73 @@ const Kawiarnia = (function () {
         if (log.children.length === 1 && log.children[0].classList.contains('italic')) log.innerHTML = '';
         const li = document.createElement('li');
         li.className = 'border-b border-stone-100 pb-1 text-xs';
-        li.innerHTML = '<span class="text-stone-800 font-semibold">Przelew' + (recipe ? ' (' + recipe.name + ')' : '') + ' ' + (q * 100).toFixed(0) + '%</span> ' +
+        li.innerHTML = '<span class="text-stone-800 font-semibold">' + (isBarman ? 'Barman: ' : '') + 'Przelew' + (recipe ? ' (' + recipe.name + ')' : '') + ' ' + (q * 100).toFixed(0) + '%</span> ' +
             '<span class="text-emerald-600">+' + money + ' PLN</span> <span class="text-amber-600">+' + rep + ' Rep</span>';
         log.prepend(li);
         if (log.children.length > 6) log.lastChild.remove();
 
-        setTimeout(() => { cont.classList.add('hidden'); updateWorkButtonState(); }, 250);
+        setTimeout(() => { cont.classList.add('hidden'); updateStationButtons(); }, 250);
     }
 
     // Limit klientów na dzień (`dailyCap` z LOCATIONS) — bez niego czynsz przy
     // "Zakończ dzień" byłby czystym kosztem: nic nie stałoby na przeszkodzie,
-    // żeby nigdy dnia nie kończyć.
-    function updateWorkButtonState() {
-        const btn = document.getElementById('btn-work');
+    // żeby nigdy dnia nie kończyć. Bezpieczne do wołania w każdej chwili (tylko
+    // disabled + tekst, nigdy nie przebudowuje stanowisk), więc nie zaburza
+    // animacji parzenia w toku.
+    function updateStationButtons() {
+        const loc = PlayerProfile.getLocation();
         const status = document.getElementById('queue-status');
-        if (!btn) return;
-        const cap = PlayerProfile.getLocation().dailyCap;
-        const left = cap - PlayerProfile.getDayStats().customers;
-        if (left <= 0) {
-            btn.disabled = true;
-            status.textContent = 'Kolejka na dziś zamknięta — zakończ dzień, żeby wrócić do pracy.';
-        } else {
-            btn.disabled = false;
-            status.textContent = 'Możesz jeszcze obsłużyć ' + left + ' klientów dzisiaj.';
+        const left = loc.dailyCap - PlayerProfile.getDayStats().customers;
+        const playerStations = PlayerProfile.hasBarman() ? loc.stations - 1 : loc.stations;
+        for (let i = 0; i < playerStations; i++) {
+            const btn = document.getElementById('btn-work-' + i);
+            if (btn) btn.disabled = left <= 0;
         }
+        if (!status) return;
+        status.textContent = left <= 0
+            ? 'Kolejka na dziś zamknięta — zakończ dzień, żeby wrócić do pracy.'
+            : 'Możesz jeszcze obsłużyć ' + left + ' klientów dzisiaj.';
     }
+
+    // Przebudowuje same stanowiska (liczba/rodzaj się zmienia tylko przy
+    // przeprowadzce albo zatrudnieniu barmana) — osobno od updateStationButtons(),
+    // żeby zwykłe odświeżenie panelu (na każdą zmianę stanu gracza) nie zrywało
+    // animacji parzenia w toku na innym stanowisku.
+    function renderStations() {
+        const loc = PlayerProfile.getLocation();
+        const host = document.getElementById('stations-panel');
+        let html = '';
+        for (let i = 0; i < loc.stations; i++) {
+            const isBarmanSlot = (i === loc.stations - 1 && PlayerProfile.hasBarman());
+            if (isBarmanSlot) {
+                html += '<div class="text-center bg-emerald-50 border border-emerald-200 rounded-lg p-4">' +
+                    '<i class="fas fa-user-tie text-emerald-600 mb-1"></i>' +
+                    '<p class="text-sm font-semibold text-emerald-700">Barman pracuje</p>' +
+                    '<div class="mt-2 h-3 w-full bg-emerald-100 rounded-full overflow-hidden hidden" id="work-progress-container-' + i + '">' +
+                    '<div id="work-progress-' + i + '" class="h-full bg-emerald-500 progress-bar-fill" style="width:0%"></div></div>' +
+                    '</div>';
+            } else {
+                html += '<div class="text-center">' +
+                    '<button id="btn-work-' + i + '" onclick="Kawiarnia.serveCustomer(' + i + ')" class="w-full bg-amber-700 hover:bg-amber-800 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"><i class="fas fa-coffee"></i> Zaparz przelew dla klienta</button>' +
+                    '<div class="mt-2 h-4 w-full bg-stone-200 rounded-full overflow-hidden hidden" id="work-progress-container-' + i + '">' +
+                    '<div id="work-progress-' + i + '" class="h-full bg-amber-500 progress-bar-fill" style="width:0%"></div></div>' +
+                    '</div>';
+            }
+        }
+        host.innerHTML = html;
+        updateStationButtons();
+    }
+
+    // Barman: jedno stanowisko obsługiwane automatycznie, bez klikania.
+    // Warunki sprawdzane na każdym tyku — bezpieczne nawet po przeprowadzce
+    // czy zwolnieniu, bez osobnego mechanizmu start/stop.
+    setInterval(() => {
+        if (!PlayerProfile.hasBarman()) return;
+        const loc = PlayerProfile.getLocation();
+        if (loc.stations < 2) return;
+        if (PlayerProfile.dayCapReached()) return;
+        serveCustomer(loc.stations - 1, true);
+    }, 2600);
 
     function renderEquipmentPanel() {
         const eq = currentEquipment(), coffee = currentCoffee();
@@ -90,13 +133,16 @@ const Kawiarnia = (function () {
 
         const next = nextLocation(loc);
         const money = PlayerProfile.getMoney();
+        const hasBarman = PlayerProfile.hasBarman();
 
         let html = '<h3 class="font-bold text-stone-800 mb-4"><i class="fas fa-shop mr-2"></i>Lokal i czynsz</h3>' +
             '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">' +
             '<div class="bg-stone-100 p-4 rounded border border-stone-200 text-sm">' +
             '<strong class="text-stone-800 block mb-1">' + loc.name + ', ' + loc.place + '</strong>' +
             '<span class="text-stone-600">Dzień ' + PlayerProfile.getDay() + ' · dziś: ' + stats.customers + '/' + loc.dailyCap + ' klientów, ' + stats.earned + ' PLN</span><br>' +
-            '<span class="text-stone-600">Czynsz dzienny: <strong class="text-red-700">' + loc.rent + ' PLN</strong> · Cena filiżanki: <strong>' + loc.cupPrice + ' PLN</strong></span>' +
+            '<span class="text-stone-600">Czynsz dzienny: <strong class="text-red-700">' + loc.rent + ' PLN</strong>' +
+            (hasBarman ? ' + barman <strong class="text-red-700">' + BARMAN_WAGE + ' PLN</strong>' : '') +
+            ' · Cena filiżanki: <strong>' + loc.cupPrice + ' PLN</strong></span>' +
             '<button onclick="Kawiarnia.endDay()" class="w-full mt-3 bg-stone-800 hover:bg-black text-white font-semibold py-2 rounded text-sm"><i class="fas fa-moon mr-2"></i>Zakończ dzień</button>' +
             '</div>';
 
@@ -112,10 +158,22 @@ const Kawiarnia = (function () {
                 'Przenieś się (' + next.moveCost + ' PLN)</button>' +
                 '</div>';
         }
+
+        if (loc.stations >= 2 && !hasBarman) {
+            const canHire = money >= BARMAN_HIRE_COST;
+            const missingHire = BARMAN_HIRE_COST - money;
+            html += '<div class="bg-emerald-50 p-4 rounded border border-emerald-200 text-sm">' +
+                '<strong class="text-stone-800 block mb-1"><i class="fas fa-user-tie mr-1"></i>Zatrudnij barmana</strong>' +
+                '<p class="text-stone-600 text-xs mb-2">Automatycznie obsługuje drugie stanowisko, bez klikania. Koszt: ' + BARMAN_HIRE_COST + ' PLN jednorazowo + ' + BARMAN_WAGE + ' PLN/dzień.</p>' +
+                '<button onclick="Kawiarnia.hireBarman()" ' + (canHire ? '' : 'disabled title="Brakuje ' + missingHire + ' PLN"') +
+                ' class="w-full font-semibold py-2 rounded text-sm ' + (canHire ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed') + '">' +
+                'Zatrudnij (' + BARMAN_HIRE_COST + ' PLN)</button>' +
+                '</div>';
+        }
         html += '</div>';
 
         document.getElementById('location-panel').innerHTML = html;
-        updateWorkButtonState();
+        updateStationButtons();
     }
 
     function nextLocation(loc) {
@@ -126,9 +184,11 @@ const Kawiarnia = (function () {
     function endDay() {
         const r = PlayerProfile.endDay();
         const net = r.stats.earned - r.paid;
+        const due = r.rent + r.wage;
         showModal('Dzień ' + r.day + ' zakończony',
             'Obsłużono ' + r.stats.customers + ' klientów, zarobek dnia ' + r.stats.earned + ' PLN. ' +
-            'Czynsz ' + r.rent + ' PLN' + (r.paid < r.rent ? ' (zapłacono tylko ' + r.paid + ' PLN — nie wystarczyło budżetu)' : '') + '. ' +
+            'Czynsz ' + r.rent + ' PLN' + (r.wage > 0 ? ' + barman ' + r.wage + ' PLN' : '') +
+            (r.paid < due ? ' (zapłacono tylko ' + r.paid + ' PLN — nie wystarczyło budżetu)' : '') + '. ' +
             'Saldo netto: ' + (net >= 0 ? '+' : '') + net + ' PLN.',
             'fa-moon', 'text-stone-600');
         renderLocationPanel();
@@ -138,9 +198,17 @@ const Kawiarnia = (function () {
         const loc = LOCATIONS.find(l => l.id === id);
         if (!PlayerProfile.moveTo(id)) return;
         showModal('Przeprowadzka!', 'Nowy lokal: ' + loc.name + ', ' + loc.place + '. ' + loc.desc, 'fa-truck-fast', 'text-amber-600');
+        renderStations();
         renderLocationPanel();
         renderEquipmentPanel();
     }
 
-    return { serveCustomer, renderEquipmentPanel, renderLocationPanel, endDay, move };
+    function hireBarman() {
+        if (!PlayerProfile.hireBarman()) return;
+        showModal('Barman zatrudniony!', 'Drugie stanowisko będzie teraz obsługiwane automatycznie, bez klikania — kosztem ' + BARMAN_WAGE + ' PLN/dzień.', 'fa-user-tie', 'text-emerald-600');
+        renderStations();
+        renderLocationPanel();
+    }
+
+    return { serveCustomer, renderEquipmentPanel, renderLocationPanel, renderStations, endDay, move, hireBarman };
 })();

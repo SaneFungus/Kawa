@@ -24,7 +24,8 @@ const PlayerProfile = (function () {
         seedCounter: 1,
         locationId: 'l1',
         day: 1,
-        dayStats: { customers: 0, earned: 0 }
+        dayStats: { customers: 0, earned: 0 },
+        hasBarman: false
     };
 
     // ---------------- Zdarzenia + zapis ----------------
@@ -139,15 +140,24 @@ const PlayerProfile = (function () {
     }
     function endDay() {
         const rent = getLocation().rent;
-        const paid = Math.min(rent, state.money);
+        const wage = state.hasBarman ? BARMAN_WAGE : 0;
+        const due = rent + wage;
+        const paid = Math.min(due, state.money);
         state.money -= paid;
-        const summary = { day: state.day, stats: Object.assign({}, state.dayStats), rent: rent, paid: paid };
+        const summary = { day: state.day, stats: Object.assign({}, state.dayStats), rent: rent, wage: wage, paid: paid };
         state.dayStats = { customers: 0, earned: 0 };
         state.day++;
         emit('day-ended');
         return summary;
     }
     function dayCapReached() { return state.dayStats.customers >= getLocation().dailyCap; }
+    function hasBarman() { return state.hasBarman; }
+    function hireBarman() {
+        if (!spendMoney(BARMAN_HIRE_COST)) return false;
+        state.hasBarman = true;
+        emit('barman');
+        return true;
+    }
     function moveTo(id) {
         const loc = LOCATIONS.find(l => l.id === id);
         if (!loc) return false;
@@ -173,6 +183,7 @@ const PlayerProfile = (function () {
         isCompUnlocked, unlockComp, isCompWon, setCompWon,
         getRecipes, getActiveRecipe, saveRecipe, setActiveRecipe,
         getLocation, getDay, getDayStats, recordDaySale, endDay, moveTo, dayCapReached,
+        hasBarman, hireBarman,
         nextSeed,
         save, load
     };
