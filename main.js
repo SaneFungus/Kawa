@@ -62,7 +62,13 @@ window.onload = function () {
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && !modalBackdrop.classList.contains('pointer-events-none')) closeModal();
     });
+
+    // StoryEvents.init() pokazuje Prolog przy pierwszej sesji gracza (raz,
+    // zapamiętane w PlayerProfile) i subskrybuje resztę scen fabularnych.
+    // Gdy Prolog właśnie zajął modal, powitalny tutorial czeka dłużej, żeby
+    // go nie nadpisać, zanim gracz zdąży przeczytać.
+    const prologShown = StoryEvents.init();
     setTimeout(() => showModal('Witaj, Baristo!',
         'W Laboratorium masz dwa tryby: auto-parzenie do szybkiego szukania nastawu i parzenie ręczne, w którym sam prowadzisz strumień po złożu. Na zawodach dostępne jest wyłącznie parzenie ręczne.',
-        'fa-mug-hot', 'text-amber-600'), 400);
+        'fa-mug-hot', 'text-amber-600'), prologShown ? 4500 : 400);
 };

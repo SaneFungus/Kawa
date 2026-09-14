@@ -26,7 +26,8 @@ const PlayerProfile = (function () {
         locationId: 'l1',
         day: 1,
         dayStats: { customers: 0, earned: 0 },
-        hasBarman: false
+        hasBarman: false,
+        storySeen: []
     };
 
     // ---------------- Zdarzenia + zapis ----------------
@@ -105,7 +106,7 @@ const PlayerProfile = (function () {
     function pushHistory(mode, entry) {
         state.history[mode].push(entry);
         if (state.history[mode].length > 12) state.history[mode].shift();
-        emit('history');
+        emit('history', { mode: mode });
     }
     function clearHistory(mode) { state.history[mode] = []; emit('history'); }
 
@@ -136,7 +137,7 @@ const PlayerProfile = (function () {
             state.compsWon.push(id);
             if (rewardRep) addReputation(rewardRep);
             if (rewardFame) addFame(rewardFame);
-            emit('comp-won');
+            emit('comp-won', { id: id });
         }
         return firstWin;
     }
@@ -208,8 +209,16 @@ const PlayerProfile = (function () {
         if (!loc) return false;
         if (!spendMoney(loc.moveCost)) return false;
         state.locationId = id;
-        emit('location');
+        emit('location', { id: id });
         return true;
+    }
+
+    // ---------------- Fabuła (Etap 7) ----------------
+    // Które sceny StoryEvents już pokazał — trzymane tu (nie w story.js), żeby
+    // przetrwać zapis/wczytanie jak reszta profilu, tym samym mechanizmem.
+    function hasSeenStory(id) { return state.storySeen.includes(id); }
+    function markStorySeen(id) {
+        if (!state.storySeen.includes(id)) { state.storySeen.push(id); emit('story'); }
     }
 
     // ---------------- Seed ----------------
@@ -230,6 +239,7 @@ const PlayerProfile = (function () {
         getRecipes, getActiveRecipe, saveRecipe, setActiveRecipe,
         getLocation, getDay, getDayStats, recordDaySale, endDay, moveTo, dayCapReached,
         hasBarman, hireBarman,
+        hasSeenStory, markStorySeen,
         nextSeed,
         save, load
     };

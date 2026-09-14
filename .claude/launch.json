@@ -4,8 +4,8 @@
     {
       "name": "kawa-static",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8796"],
-      "port": 8796
+      "runtimeArgs": ["-m", "http.server", "8815"],
+      "port": 8815
     }
   ]
 }
