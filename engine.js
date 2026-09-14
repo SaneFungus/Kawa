@@ -21,8 +21,24 @@ const BrewEngine = (function () {
     const EA         = 52000;   // energia aktywacji [J/mol] dla rozpuszczalnych
     const R_GAS      = 8.314;
 
-    // Kalibracja odniesienia: 15 g / 250 g / 700 µm / 93°C / V60 / Comandante C40
-    // => EY 20,0% · TDS 1,36% · σ 0,83 · czas kontaktu 169 s
+    // ---------- Chemia wody (Etap 8) ----------
+    // GH (twardość ogólna, Ca2+/Mg2+ jako CaCO3 [ppm]) chelatuje kwasy z kawy
+    // i lekko PODNOSI szybkość ekstrakcji. KH (zasadowość/bufor wodorowęglanowy
+    // jako CaCO3 [ppm]) neutralizuje kwasy w filiżance — wysoka zasadowość
+    // przygasza kwasowość i smak, niska odsłania ostrość. Referencje wg
+    // standardu SCA Water Quality (GH ~100 ppm, KH ~40 ppm).
+    const GH_REF        = 100;
+    const KH_REF        = 40;
+    const GH_EXP        = 0.12; // czułość szybkości ekstrakcji na twardość
+    const KH_FLAT_SPAN  = 120;  // ppm KH nad referencją do pełnego "przygaszenia"
+    const CHANNEL_SIGMA_COEF = 2.0; // skala rozrzutu z kanałowania (patrz extract())
+
+    // Kalibracja odniesienia: 15 g / 250 g / 700 µm / 93°C / V60 / Comandante C40,
+    // woda referencyjna (GH 100 / KH 40 ppm) => EY 20,95% · TDS 1,43% · σ 0,87 ·
+    // czas kontaktu 165 s. Przy zmianie stałych fizycznych (K0, DIFF_EXP,
+    // PERM_EXP, F_FAST, K_FAST, EA, GH_EXP, KH_FLAT_SPAN, CHANNEL_SIGMA_COEF)
+    // warto sprawdzić, czy ten punkt odniesienia nadal wychodzi sensownie —
+    // nie ma do tego automatycznego testu.
 
     // ---------- Deterministyczny RNG (mulberry32) ----------
     // Powtarzalne wyniki = gracz może się uczyć, a nie zgadywać.
@@ -72,6 +88,20 @@ const BrewEngine = (function () {
         return Math.exp((-EA / R_GAS) * (1 / Tk - 1 / T0));
     }
 
+    // Chelatacja jonów Ca2+/Mg2+ ułatwia rozpuszczanie — twardsza woda = szybsza
+    // kinetyka, mnoży się tak samo jak tempFactor. Przy GH=GH_REF factor=1.
+    function waterKineticFactor(gh) {
+        return Math.pow(Math.max(gh, 1) / GH_REF, GH_EXP);
+    }
+    // Wysoka zasadowość (KH) buforuje/neutralizuje kwasy w filiżance — przygasza.
+    function waterFlatness(kh) {
+        return clamp((kh - KH_REF) / KH_FLAT_SPAN, 0, 1);
+    }
+    // Niska zasadowość nie buforuje nic — kwasowość wybrzmiewa ostrzej.
+    function waterBrightness(kh) {
+        return clamp((KH_REF - kh) / KH_REF, 0, 1);
+    }
+
     // ---------- 3. Czas kontaktu jako WYNIK, nie wejście ----------
     // Kozeny–Carman: przepuszczalność złoża rośnie z kwadratem średnicy cząstki.
     // Dodatkowo: pył blokuje przepływ, a świeża kawa wydziela CO2 i spowalnia zwilżanie.
@@ -89,9 +119,9 @@ const BrewEngine = (function () {
     // ---------- 4. Ekstrakcja: kinetyka pierwszego rzędu, osobno dla każdej frakcji ----------
     // EY_i(t) = EY_max * (1 - exp(-k_i * t)),  k_i ∝ (1/d)^1.8
     // Wynikiem jest ROZKŁAD ekstrakcji, nie jedna liczba.
-    function extract(p, eq, coffee, bins, t) {
+    function extract(p, eq, coffee, bins, t, water) {
         const agit = eq.dripper.agitation * (p.agitation || 1.0);
-        const tf   = tempFactor(p.temp);
+        const tf   = tempFactor(p.temp) * waterKineticFactor(water.gh);
         // Model dwukompartmentowy:
         //  - frakcja SZYBKA (F_FAST): rozpuszczalne z powierzchni i rozbitych komórek,
         //    schodzą niemal natychmiast, niezależnie od średnicy cząstki,
@@ -107,20 +137,30 @@ const BrewEngine = (function () {
             yields.push(ey);
             mean += ey * b.w;
         }
-        let variance = 0;
+        let varianceGrind = 0;
         for (let i = 0; i < bins.length; i++) {
-            variance += bins[i].w * Math.pow(yields[i] - mean, 2);
+            varianceGrind += bins[i].w * Math.pow(yields[i] - mean, 2);
         }
-        // Nierównomierność złoża (kanałowanie) dokłada rozrzut, nie zmieniając średniej.
-        // agitation i evenness to DWIE NIEZALEŻNE osi techniki nalewania:
-        // gwałtowny, chaotyczny strumień = wysoka agitacja, niska równomierność.
-        const channel = eq.dripper.evenness * (p.evenness || 1.0);
-        const sigma = Math.sqrt(variance) / channel;
+        // Kanałowanie (nierówna dystrybucja wody po złożu) i rozrzut z przemiału
+        // to DWA NIEZALEŻNE źródła nierówności — łączy się je przez sumę wariancji,
+        // nie przez dzielenie jednego przez drugie (dzielenie dawało fizyczny
+        // nonsens: idealny przemiał + fatalna technika wychodziły jako "równe",
+        // a bardzo dobra geometria zaparzacza zjadała wariancję przemiału poniżej
+        // fizycznego dna). agitation i evenness to DWIE NIEZALEŻNE osi techniki
+        // nalewania: gwałtowny, chaotyczny strumień = wysoka agitacja, niska
+        // równomierność. channelFactor >= 1 (referencyjny V60 + dobra technika,
+        // albo lepsza geometria typu Kalita) => zero dodatkowego rozrzutu;
+        // kanałowanie dokłada wariancję TYLKO gdy technika/geometria są gorsze
+        // od referencji.
+        const channelFactor  = eq.dripper.evenness * (p.evenness || 1.0);
+        const channelDeficit = Math.max(0, 1 - channelFactor);
+        const sigmaChannel   = CHANNEL_SIGMA_COEF * channelDeficit;
+        const sigma = Math.sqrt(varianceGrind + sigmaChannel * sigmaChannel);
         return { mean: mean, sigma: sigma };
     }
 
     // ---------- 5. Model sensoryczny: 7 osi karty WBrC ----------
-    function sensory(ey, tds, sigma, coffee, p) {
+    function sensory(ey, tds, sigma, coffee, p, water) {
         const sweet = gauss(ey, 20.0, 2.4);
         const sour  = clamp((19.0 - ey) / 4.5, 0, 1);
         const bitter= clamp((ey - 21.0) / 4.5, 0, 1);
@@ -130,12 +170,14 @@ const BrewEngine = (function () {
         const q     = coffee.quality;
         const fresh = clamp(0.55 + 0.45 * gauss(coffee.daysOffRoast, 12, 9), 0, 1);
         const tempQ = clamp(0.6 + 0.4 * gauss(p.temp, 93.5, 4.0), 0, 1);
+        const flat   = waterFlatness(water.kh);
+        const bright = waterBrightness(water.kh);
 
         const s = {
             aroma:      9 * q * fresh * tempQ * (1 - 0.2 * astr),
-            flavor:     9 * q * (0.22 + 0.78 * sweet) * (1 - 0.45 * astr) * (1 - 0.25 * bitter),
+            flavor:     9 * q * (0.22 + 0.78 * sweet) * (1 - 0.45 * astr) * (1 - 0.25 * bitter) * (1 - 0.15 * flat),
             aftertaste: 9 * q * Math.pow(sweet, 1.1) * (1 - 0.5 * bitter) * (1 - 0.5 * astr) * (0.4 + 0.6 * bodyI),
-            acidity:    9 * q * coffee.acidity * (1 - 0.7 * sour) * (0.35 + 0.65 * gauss(ey, 19.6, 3.0)) * (1 - 0.3 * bitter),
+            acidity:    9 * q * coffee.acidity * (1 - 0.7 * sour) * (0.35 + 0.65 * gauss(ey, 19.6, 3.0)) * (1 - 0.3 * bitter) * (1 - 0.55 * flat + 0.2 * bright),
             body:       9 * coffee.body * (0.3 + 0.7 * gauss(tds, 1.33, 0.25)),
             balance:    9 * q * (1 - 0.6 * astr) * gauss(ey, 20.0, 3.0) * (1 - 0.35 * Math.abs(sour - bitter))
         };
@@ -169,9 +211,16 @@ const BrewEngine = (function () {
     }
 
     // ---------- API ----------
-    // brew({dose, water, grind, temp, technique}, {grinder, dripper, kettle}, coffee, seed)
-    function brew(params, eq, coffee, seed) {
+    // brew({dose, water, grind, temp, technique}, {grinder, dripper, kettle}, coffee, seed, water?)
+    // Piąty argument (chemia wody: {gh, kh} jako ppm CaCO3) jest opcjonalny —
+    // bez niego używana jest referencja SCA (GH_REF/KH_REF), więc wywołania bez
+    // tego argumentu (cała dzisiejsza gra) mają zero zmiany zachowania.
+    function brew(params, eq, coffee, seed, water) {
         const rng = makeRng(seed >>> 0);
+        const w = {
+            gh: (water && water.gh !== undefined) ? water.gh : GH_REF,
+            kh: (water && water.kh !== undefined) ? water.kh : KH_REF
+        };
 
         // Czajnik bez kontroli temperatury = dryf temperatury (deterministyczny per seed).
         const drift = (rng() - 0.5) * 2 * eq.kettle.tempDrift;
@@ -189,12 +238,12 @@ const BrewEngine = (function () {
 
         const bins  = particleBins(p.grind, eq.grinder.gsd);
         const time  = contactTime(p, eq, coffee, bins);
-        const ex    = extract(p, eq, coffee, bins, time);
+        const ex    = extract(p, eq, coffee, bins, time, w);
 
         const brewMass = Math.max(1, p.water - p.dose * LRR * eq.dripper.retention);
         const tds = (ex.mean / 100) * (p.dose / brewMass) * 100;
 
-        const sens = sensory(ex.mean, tds, ex.sigma, coffee, p);
+        const sens = sensory(ex.mean, tds, ex.sigma, coffee, p, w);
 
         return {
             ey: +ex.mean.toFixed(2),
@@ -208,12 +257,13 @@ const BrewEngine = (function () {
             fines: +(finesFraction(bins) * 100).toFixed(1),
             agitation: +p.agitation.toFixed(3),
             evenness: +p.evenness.toFixed(3),
+            water: w,
             sensory: sens,
             verdict: describe(ex.mean, tds, ex.sigma, sens.intensities)
         };
     }
 
-    return { brew, particleBins, contactTime, tempFactor, makeRng, LRR, constants: { D_REF, T_REF } };
+    return { brew, particleBins, contactTime, tempFactor, makeRng, LRR, constants: { D_REF, T_REF, GH_REF, KH_REF } };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = BrewEngine;
