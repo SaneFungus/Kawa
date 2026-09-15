@@ -105,10 +105,10 @@ szuflada) celowo NIE jest częścią `PlayerProfile`.
   + mini-gra, pełny odczyt EY/TDS/sigma/czasu), **Konkurs** (wyłącznie parzenie
   ręczne, drabinka szczebli, wymaga 50 pkt reputacji z Kawiarni).
 
-### Układ mobilny (etapy M0–M5)
+### Układ mobilny (etapy M0–M6)
 
 Gra jest projektowana mobile-first; desktop to ten sam kod z szerszym układem.
-Pięć elementów niesie tę konstrukcję i warto ich nie rozmontować przy edycjach:
+Sześć elementów niesie tę konstrukcję i warto ich nie rozmontować przy edycjach:
 
 - **Powłoka aplikacji** — `body` to kolumna flex: chudy nagłówek, przewijany
   `<main>`, dolny pasek zakładek `#tabbar`. Wysokości liczone w `dvh`
@@ -144,6 +144,16 @@ Pięć elementów niesie tę konstrukcję i warto ich nie rozmontować przy edyc
   krawędź. Wykres ma stały `viewBox`, więc renderowanie go w ukrytej zakładce
   jest bezpieczne.
 
+- **Mini-gra na pełnym ekranie** (`.pour-shell`) — jedyny ekran gry czasu
+  rzeczywistego, więc nic tu nie może wypaść pod krawędź: powłoka jest kolumną
+  flex na `100dvh`, overlay ma `overflow: hidden`, pole gry zabiera całą wolną
+  wysokość, a paski i przyciski mają stałą. Canvas trzyma kwadrat przez
+  `aspect-ratio` z `max-width`/`max-height` — **nie używaj `object-fit`**:
+  dotyk jest mapowany przez `getBoundingClientRect()` CAŁEGO elementu, więc
+  letterboxing rozjechałby współrzędne strumienia względem złoża. Rozdzielczość
+  bitmapy (`CV`) jest stała i niezależna od rozmiaru CSS, dlatego skalowanie
+  nie wymaga żadnej zmiany w logice mini-gry.
+
 Warstwy nakładania: `#tabbar` z-30, szuflada z-40, modal z-50, mini-gra z-60.
 Escape zamyka to, co na wierzchu.
 
@@ -159,6 +169,11 @@ specyficzności wygrywa. To już dwa razy dało cichą regresję:
   bo selektor Tailwinda `.space-y-5 > :not([hidden]) ~ :not([hidden])` jest
   bardziej specyficzny niż `> * + *`. Żeby go nadpisać, użyj tego samego
   kształtu selektora.
+- klasy `flex` i `hidden` Tailwinda mają tę samą specyficzność, więc o wyniku
+  decyduje kolejność w arkuszu. Tam, gdzie kod przełącza widoczność przez
+  `classList.toggle('hidden')` na elemencie, który ma też być kolumną flex
+  (`#pour-stage`, `#pour-summary`), rozstrzygnij to własną regułą z selektorem
+  po `id`, zamiast liczyć na kolejność.
 
 Po każdej zmianie w układzie sprawdź OBA warianty — regresja pokazuje się
 tylko na jednym z nich.

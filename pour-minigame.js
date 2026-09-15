@@ -56,6 +56,7 @@ const PourMinigame = (function () {
         document.getElementById('pour-overlay').classList.remove('hidden');
         document.getElementById('pour-summary').classList.add('hidden');
         document.getElementById('pour-stage').classList.remove('hidden');
+        document.getElementById('pour-howto').classList.remove('hidden');
         cv = document.getElementById('pour-canvas');
         cv.width = CV; cv.height = CV;
         ctx = cv.getContext('2d');
@@ -70,7 +71,12 @@ const PourMinigame = (function () {
     }
 
     function bindInput() {
-        const down = e => { e.preventDefault(); S.pouring = true; move(e); };
+        const down = e => {
+            e.preventDefault();
+            hideHowto();
+            S.pouring = true;
+            move(e);
+        };
         const up   = e => { S.pouring = false; S.lastPx = null; };
         const move = e => {
             const t = e.touches ? e.touches[0] : e;
@@ -83,6 +89,14 @@ const PourMinigame = (function () {
         cv.onpointerup = up;
         cv.onpointerleave = up;
         cv.onpointercancel = up;
+    }
+
+    // Instrukcja obsługi jest nakładką NAD canvasem, nie wierszem w kolumnie —
+    // dzięki temu znika po pierwszym dotknięciu złoża, nie przesuwając układu
+    // w trakcie gry czasu rzeczywistego.
+    function hideHowto() {
+        const h = document.getElementById('pour-howto');
+        if (h) h.classList.add('hidden');
     }
 
     // ---------------- Symulacja ----------------
@@ -357,10 +371,12 @@ const PourMinigame = (function () {
         document.getElementById('pour-water-bar').style.width = clamp(S.poured / S.targetWater * 100, 0, 100) + '%';
         document.getElementById('pour-time').textContent = Math.floor(S.tBrew / 60) + ':' + String(Math.floor(S.tBrew % 60)).padStart(2, '0');
 
+        // Etap M6: pasek poziomu zalania jest teraz poziomy (pod polem gry),
+        // więc sterujemy szerokością, nie wysokością.
         const lvl = clamp(S.level / MAX_LEVEL * 100, 0, 100);
         const bar = document.getElementById('pour-level-bar');
-        bar.style.height = lvl + '%';
-        bar.className = 'w-full absolute bottom-0 transition-all ' +
+        bar.style.width = lvl + '%';
+        bar.className = 'absolute left-0 top-0 h-full transition-all ' +
             (S.level > FLOOD_LEVEL ? 'bg-red-500' : S.level > FLOOD_LEVEL * 0.7 ? 'bg-amber-500' : 'bg-sky-500');
 
         const rest = document.getElementById('pour-rest');
@@ -384,7 +400,7 @@ const PourMinigame = (function () {
         box.classList.remove('hidden');
 
         const hc = document.getElementById('pour-heatmap');
-        hc.width = CV; hc.height = CV;
+        hc.width = CV; hc.height = CV;   // rozdzielczość bitmapy; rozmiar na ekranie robi CSS
         const hctx = hc.getContext('2d');
         hctx.clearRect(0, 0, CV, CV);
         hctx.beginPath(); hctx.arc(S.cx, S.cy, S.R * 1.11, 0, Math.PI * 2);
