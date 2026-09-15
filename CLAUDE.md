@@ -105,10 +105,10 @@ szuflada) celowo NIE jest częścią `PlayerProfile`.
   + mini-gra, pełny odczyt EY/TDS/sigma/czasu), **Konkurs** (wyłącznie parzenie
   ręczne, drabinka szczebli, wymaga 50 pkt reputacji z Kawiarni).
 
-### Układ mobilny (etapy M0–M6)
+### Układ mobilny (etapy M0–M7)
 
 Gra jest projektowana mobile-first; desktop to ten sam kod z szerszym układem.
-Sześć elementów niesie tę konstrukcję i warto ich nie rozmontować przy edycjach:
+Siedem elementów niesie tę konstrukcję i warto ich nie rozmontować przy edycjach:
 
 - **Powłoka aplikacji** — `body` to kolumna flex: chudy nagłówek, przewijany
   `<main>`, dolny pasek zakładek `#tabbar`. Wysokości liczone w `dvh`
@@ -153,6 +153,14 @@ Sześć elementów niesie tę konstrukcję i warto ich nie rozmontować przy edy
   letterboxing rozjechałby współrzędne strumienia względem złoża. Rozdzielczość
   bitmapy (`CV`) jest stała i niezależna od rozmiaru CSS, dlatego skalowanie
   nie wymaga żadnej zmiany w logice mini-gry.
+
+- **Sklep na dotyk** (`Sklep.showCategory`/`toggleDetails`) — cztery kategorie
+  jako zakładki (jedna sekcja naraz) i szczegóły przedmiotu zwinięte pod
+  tapnięcie; na desktopie pasek znika, a wszystkie sekcje i opisy są widoczne.
+  `activeCat` żyje poza `render()`, bo `render()` leci po każdym zakupie
+  i nie może wyrzucać gracza z kategorii, w której właśnie kupował.
+  **Powód blokady przycisku musi być widoczny w treści** — atrybut `title`
+  nie istnieje na dotyku, a był jedyną informacją o tym, ile brakuje pieniędzy.
 
 Warstwy nakładania: `#tabbar` z-30, szuflada z-40, modal z-50, mini-gra z-60.
 Escape zamyka to, co na wierzchu.

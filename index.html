@@ -307,6 +307,27 @@
         max-height: 100%;
     }
 
+    /* ---------------------------------------------------------------------
+       Etap M7 — Sklep na dotyk.
+       Kategorie jako zakładki (jedna sekcja naraz) i szczegóły przedmiotu
+       zwinięte pod tapnięcie. Na desktopie jedno i drugie znika: wszystkie
+       sekcje stoją obok siebie, a opisy są zawsze widoczne.
+       --------------------------------------------------------------------- */
+    .shop-section { display: none; }
+    .shop-section.pane-active { display: block; }
+    .shop-details { display: none; }
+    .shop-details.open { display: block; }
+    #shop-tabs { background: #e7e5e4; }
+
+    @media (min-width: 768px) {
+        .shop-section { display: block; }
+        .shop-details { display: block; }
+        .shop-more { display: none; }
+    }
+
+    /* Zwijany log zamówień w Kawiarni (Etap M7). */
+    #work-log.log-collapsed { display: none; }
+
     /* Panel nastawu na desktopie: po przeniesieniu wykresu do karty wyniku
        stoi sam w całej szerokości, więc suwaki układamy w dwie kolumny
        zamiast rozciągać je na 1200 px. Selektor dorównuje specyficznością
@@ -379,8 +400,11 @@
         <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200">
             <h2 id="kawiarnia-title" class="text-2xl mb-2 text-stone-800">Kawiarnia Osiedlowa</h2>
             <p class="text-stone-600 mb-5 text-sm md:text-base">Pracuj za barem, parz przelewy dla mieszkańców. Jakość sprzętu i ziarna przekłada się na napiwki oraz tempo budowania reputacji.</p>
-            <div class="bg-white p-4 rounded-lg shadow-inner text-sm space-y-2 border border-stone-200">
-                <h4 class="font-bold text-stone-700 border-b pb-2 mb-2"><i class="fas fa-history mr-2"></i>Ostatnie zamówienia</h4>
+            <div class="bg-white p-4 rounded-lg shadow-inner text-sm border border-stone-200">
+                <button type="button" onclick="Kawiarnia.toggleLog()" class="w-full flex items-center justify-between font-bold text-stone-700 border-b pb-2 mb-2">
+                    <span><i class="fas fa-history mr-2"></i>Ostatnie zamówienia</span>
+                    <i id="work-log-chevron" class="fas fa-chevron-up text-xs text-stone-400"></i>
+                </button>
                 <ul id="work-log" class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                     <li class="text-stone-400 italic">Oczekujesz na klientów...</li>
                 </ul>
@@ -388,7 +412,9 @@
         </div>
         <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200">
             <h3 class="font-bold text-stone-800 mb-4"><i class="fas fa-toolbox mr-2"></i>Twój aktualny setup</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm" id="eq-panel"></div>
+            <!-- Etap M7: dwie kolumny już na telefonie — pięć kafelków jeden pod
+                 drugim zajmowało 566 px, czyli cały ekran na samą informację. -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-sm" id="eq-panel"></div>
         </div>
         <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200" id="location-panel"></div>
         <!-- Dok akcji: stanowiska pracy (Etap M2). Wypełniany przez Kawiarnia.renderStations(). -->
@@ -397,10 +423,12 @@
 
     <!-- ====================== SKLEP ====================== -->
     <section id="view-sklep" class="max-w-6xl mx-auto space-y-6 pb-4 md:pb-8 view-hidden">
-        <div class="text-center mb-8">
+        <div class="text-center mb-5 md:mb-8">
             <h2 class="text-2xl md:text-3xl font-bold text-stone-800">Sklep Specjalistyczny</h2>
-            <p class="text-stone-600 mt-2 text-sm md:text-base">Każdy przedmiot zmienia konkretny parametr modelu ekstrakcji. Najedź, żeby zobaczyć wpływ na fizykę parzenia.</p>
+            <p class="text-stone-600 mt-2 text-sm md:text-base">Każdy przedmiot zmienia konkretny parametr modelu ekstrakcji.</p>
         </div>
+        <!-- Zakładki kategorii (Etap M7). Wypełniane przez Sklep.render(). -->
+        <div id="shop-tabs" class="result-tabs sticky top-0 z-10" role="tablist"></div>
         <div id="shop-container" class="space-y-10"></div>
     </section>
 

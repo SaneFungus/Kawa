@@ -307,7 +307,7 @@ sprawdzona na 360×640 ORAZ na desktopie.
 | **M4** | Kontrolery dotykowe: stepper, presety, throttle rAF | zrobione |
 | **M5** | Karta wyniku z zakładkami, auto-otwarcie po parzeniu | zrobione |
 | **M6** | Mini-gra pełnoekranowa bez przewijania, canvas skalowany do viewportu | zrobione |
-| **M7** | Sklep na dotyk (tap zamiast hover), Kawiarnia z zwijanym logiem | do zrobienia |
+| **M7** | Sklep na dotyk (kategorie w zakładkach, zwijane szczegóły), Kawiarnia | zrobione |
 | **M8** | Przegląd typografii i kontrastu, testy na 360×640 i 390×844 | do zrobienia |
 
 ## Decyzje, które warto znać przed dalszymi zmianami

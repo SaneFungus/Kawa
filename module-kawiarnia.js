@@ -130,6 +130,16 @@ const Kawiarnia = (function () {
         serveCustomer(loc.stations - 1, true);
     }, 2600);
 
+    // Log zamówień jest domyślnie otwarty (to jedyna informacja zwrotna
+    // o zarobku), ale daje się zwinąć — na telefonie odzyskuje to miejsce
+    // graczom, którzy tylko klikają kolejnych klientów (Etap M7).
+    function toggleLog() {
+        const log = document.getElementById('work-log');
+        const collapsed = log.classList.toggle('log-collapsed');
+        document.getElementById('work-log-chevron').className =
+            'fas text-xs text-stone-400 ' + (collapsed ? 'fa-chevron-down' : 'fa-chevron-up');
+    }
+
     function renderEquipmentPanel() {
         const eq = currentEquipment(), coffee = currentCoffee();
         const recipe = PlayerProfile.getActiveRecipe();
@@ -234,5 +244,5 @@ const Kawiarnia = (function () {
         renderLocationPanel();
     }
 
-    return { serveCustomer, renderEquipmentPanel, renderLocationPanel, renderStations, endDay, move, hireBarman };
+    return { serveCustomer, renderEquipmentPanel, renderLocationPanel, renderStations, endDay, move, hireBarman, toggleLog };
 })();
