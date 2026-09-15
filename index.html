@@ -155,6 +155,29 @@
             padding: 0;
         }
         .controls-panel.in-sheet .controls-title { display: none; }
+
+        /* Etap M4: w szufladzie odczyt (brew ratio, czas kontaktu, pył)
+           wędruje na górę i tam zostaje przypięty. To jedyna informacja
+           zwrotna o tym, co suwak właśnie zrobił — przewinięty poza ekran
+           zmuszał do skakania w górę po każdym ruchu. Kolejność zmieniamy
+           przez flex/order, więc odstępy z klasy space-y-* trzeba wyzerować,
+           żeby nie dublowały się z gap. */
+        .controls-panel.in-sheet {
+            display: flex;
+            flex-direction: column;
+        }
+        /* Odstępy zostawiamy klasie space-y-* (flex jest tu tylko po to, żeby
+           dało się użyć `order`); własny `gap` DODAWAŁBY się do nich, bo
+           selektor Tailwinda jest bardziej specyficzny niż `> * + *`.
+           Ten zapis dorównuje mu specyficznością i zacieśnia odstęp. */
+        .controls-panel.in-sheet > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
+        .controls-panel.in-sheet .readout-box {
+            order: -1;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
     }
 
     #sheet {
@@ -170,6 +193,25 @@
     }
     #sheet-backdrop.sheet-open { opacity: 1; pointer-events: auto; }
     #sheet-body { padding-bottom: calc(1rem + var(--safe-bottom)); }
+
+    /* ---------------------------------------------------------------------
+       Etap M4 — suwak pod palec.
+       Natywny <input type=range> ma pole trafienia wysokości samego kciuka
+       (ok. 16 px), więc na telefonie przeciągnięcie łapało scroll zamiast
+       suwaka. Podniesienie wysokości elementu powiększa obszar dotyku, nie
+       ruszając wyglądu toru ani koloru z klasy accent-* Tailwinda.
+       --------------------------------------------------------------------- */
+    .touch-slider {
+        height: var(--tap);
+        -webkit-tap-highlight-color: transparent;
+        touch-action: pan-x;
+    }
+    @media (min-width: 768px) { .touch-slider { height: 2rem; } }
+
+    /* Chipy presetów też trzymają minimalny cel dotykowy; na desktopie mogą
+       być niższe, bo celuje się w nie myszą. */
+    .preset-chip { min-height: var(--tap); }
+    @media (min-width: 768px) { .preset-chip { min-height: 2rem; } }
 </style>
 </head>
 <body class="overflow-hidden flex flex-col">

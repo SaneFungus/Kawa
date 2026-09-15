@@ -18,12 +18,27 @@ const params = {
 // nie odblokowało.
 const brewingInProgress = { lab: false, comp: false };
 
+// `step` to rozdzielczość suwaka, `bump` — skok jednego tapnięcia w przycisk
+// plus/minus (Etap M4). Rozdzielają się, bo krok suwaka dobrany do precyzji
+// myszy jest na palec bezużyteczny: przy przemiale 350-1200 µm co 10 µm jeden
+// piksel ekranu 375 px to ~3 µm, więc w mielenie nie da się trafić inaczej niż
+// przyciskiem. `presets` to wartości, które w parzeniu faktycznie się nastawia.
 const SLIDERS = [
-    { key: 'dose',  label: 'Doza kawy',      min: 10,  max: 30,   step: 0.5, unit: 'g',  accent: 'accent-amber-700' },
-    { key: 'water', label: 'Woda',           min: 150, max: 450,  step: 5,   unit: 'g',  accent: 'accent-blue-600' },
-    { key: 'grind', label: 'Mediana przemiału', min: 350, max: 1200, step: 10, unit: 'µm', accent: 'accent-stone-700' },
-    { key: 'temp',  label: 'Temperatura wody',  min: 82,  max: 99,  step: 0.5, unit: '°C', accent: 'accent-red-600' }
+    { key: 'dose',  label: 'Doza kawy',      min: 10,  max: 30,   step: 0.5, bump: 0.5, unit: 'g',  accent: 'accent-amber-700' },
+    { key: 'water', label: 'Woda',           min: 150, max: 450,  step: 5,   bump: 5,   unit: 'g',  accent: 'accent-blue-600',
+      ratioPresets: [15, 16, 17] },
+    // Przemiał: rozdzielczość podniesiona z 10 na 25 µm. `bump` MUSI być
+    // wielokrotnością `step`, bo setParam() przyciąga wynik do kroku — przy
+    // step 10 i bump 25 tapnięcie przesuwało nastaw raz o 20, raz o 30 µm.
+    // 25 µm to zresztą uczciwsza rozdzielczość niż 10: żaden młynek nie jest
+    // powtarzalny do 10 µm mediany.
+    { key: 'grind', label: 'Mediana przemiału', min: 350, max: 1200, step: 25, bump: 25, unit: 'µm', accent: 'accent-stone-700',
+      presets: [{ label: 'Drobno', value: 550 }, { label: 'Średnio', value: 700 }, { label: 'Grubo', value: 900 }] },
+    { key: 'temp',  label: 'Temperatura wody',  min: 82,  max: 99,  step: 0.5, bump: 0.5, unit: '°C', accent: 'accent-red-600',
+      presets: [{ label: '88°', value: 88 }, { label: '93°', value: 93 }, { label: '96°', value: 96 }] }
 ];
+
+function clampParam(v, min, max) { return v < min ? min : v > max ? max : v; }
 
 function setText(id, v) { const e = document.getElementById(id); if (e) e.textContent = v; }
 
@@ -101,14 +116,18 @@ function buildControlsSkeleton(mode) {
     let html = '<h3 class="controls-title font-bold border-b pb-2 text-stone-700">Parametry nastawu</h3>';
     for (const s of SLIDERS) {
         html += '<div>' +
-            '<label class="flex justify-between text-sm font-semibold mb-1">' +
-            '<span>' + s.label + '</span>' +
-            '<span id="' + mode + '-val-' + s.key + '" class="mono text-amber-700"></span>' +
-            '</label>' +
-            '<input type="range" id="' + mode + '-' + s.key + '" min="' + s.min + '" max="' + s.max + '" step="' + s.step + '" value="' + params[mode][s.key] + '" class="w-full ' + s.accent + '" oninput="onSlider(\'' + mode + '\',\'' + s.key + '\')">' +
+            '<div class="flex items-center justify-between gap-2 mb-1">' +
+            '<span class="text-sm font-semibold">' + s.label + '</span>' +
+            '<span class="flex items-center gap-1">' +
+            stepperBtnHtml(mode, s.key, -1) +
+            '<span id="' + mode + '-val-' + s.key + '" class="mono text-amber-700 font-bold text-sm w-[4.5rem] text-center"></span>' +
+            stepperBtnHtml(mode, s.key, 1) +
+            '</span></div>' +
+            '<input type="range" id="' + mode + '-' + s.key + '" min="' + s.min + '" max="' + s.max + '" step="' + s.step + '" value="' + params[mode][s.key] + '" class="touch-slider w-full ' + s.accent + '" oninput="onSlider(\'' + mode + '\',\'' + s.key + '\')">' +
+            presetsHtml(mode, s) +
             '</div>';
     }
-    html += '<div class="bg-white rounded border border-stone-200 p-3 text-xs space-y-1 mono">' +
+    html += '<div class="readout-box bg-white rounded border border-stone-200 p-3 text-xs space-y-1 mono">' +
             '<div class="flex justify-between"><span class="text-stone-500">Brew ratio</span><span id="' + mode + '-out-ratio" class="font-bold"></span></div>' +
             '<div class="flex justify-between"><span class="text-stone-500">Szacowany czas kontaktu</span><span id="' + mode + '-out-time" class="font-bold"></span></div>' +
             '<div class="flex justify-between"><span class="text-stone-500">Udział pyłu (&lt;200 µm)</span><span id="' + mode + '-out-fines" class="font-bold"></span></div>' +
@@ -127,6 +146,60 @@ function buildControlsSkeleton(mode) {
 function renderDock(hostId, html) {
     const host = document.getElementById(hostId);
     if (host) host.innerHTML = html;
+}
+
+// ---------- Kontrolery dotykowe (Etap M4) ----------
+function stepperBtnHtml(mode, key, dir) {
+    return '<button type="button" id="' + mode + '-' + key + '-' + (dir < 0 ? 'dec' : 'inc') + '" ' +
+        'onclick="bumpParam(\'' + mode + '\',\'' + key + '\',' + dir + ')" ' +
+        'aria-label="' + (dir < 0 ? 'Zmniejsz' : 'Zwiększ') + '" ' +
+        'class="w-11 h-11 md:w-9 md:h-9 shrink-0 flex items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-700 ' +
+        'active:bg-stone-200 disabled:opacity-30 disabled:cursor-not-allowed">' +
+        '<i class="fas fa-' + (dir < 0 ? 'minus' : 'plus') + ' text-xs" aria-hidden="true"></i></button>';
+}
+
+function presetChipHtml(onclick, label) {
+    return '<button type="button" onclick="' + onclick + '" ' +
+        'class="preset-chip px-3 rounded-full border border-stone-300 bg-white text-xs font-semibold text-stone-600 active:bg-amber-100 active:border-amber-400">' +
+        label + '</button>';
+}
+
+// Woda dostaje presety brew ratio, nie gramów — 1:16 znaczy to samo przy
+// każdej dozie, a « 240 g » już nie.
+function presetsHtml(mode, s) {
+    let chips = '';
+    if (s.presets) {
+        chips = s.presets.map(function (pr) {
+            return presetChipHtml('setParam(\'' + mode + '\',\'' + s.key + '\',' + pr.value + ')', pr.label);
+        }).join('');
+    } else if (s.ratioPresets) {
+        chips = s.ratioPresets.map(function (r) {
+            return presetChipHtml('setRatio(\'' + mode + '\',' + r + ')', '1:' + r);
+        }).join('');
+    }
+    return chips ? '<div class="flex flex-wrap gap-1.5 mt-2">' + chips + '</div>' : '';
+}
+
+// Wspólne wejście dla przycisków, presetów i suwaka: jedno miejsce, które
+// przycina do zakresu i przyciąga do kroku suwaka, żeby arytmetyka
+// zmiennoprzecinkowa nie wyprodukowała nastawu typu 93.30000000000001.
+function setParam(mode, key, value) {
+    const s = SLIDERS.find(function (x) { return x.key === key; });
+    if (!s) return;
+    const snapped = Math.round(clampParam(value, s.min, s.max) / s.step) * s.step;
+    params[mode][key] = parseFloat(snapped.toFixed(4));
+    const el = document.getElementById(mode + '-' + key);
+    if (el) el.value = params[mode][key];
+    refreshReadouts(mode);
+}
+
+function bumpParam(mode, key, dir) {
+    const s = SLIDERS.find(function (x) { return x.key === key; });
+    if (s) setParam(mode, key, params[mode][key] + dir * (s.bump || s.step));
+}
+
+function setRatio(mode, ratio) {
+    setParam(mode, 'water', params[mode].dose * ratio);
 }
 
 // ---------- Pasek podsumowania nastawu (Etap M3) ----------
@@ -182,9 +255,19 @@ function progressBarHtml(mode) {
     return '<div id="' + mode + '-progress-container" class="h-2 w-full bg-stone-200 rounded-full overflow-hidden hidden mb-2"><div id="' + mode + '-progress" class="h-full bg-amber-600 progress-bar-fill" style="width:0%"></div></div>';
 }
 
+// Przeciąganie suwaka sypie zdarzeniami `input` gęściej niż klatkami, a każde
+// przeliczenie to particleBins + contactTime + pełne przerysowanie wykresu.
+// Sklejamy je do jednego przeliczenia na klatkę (Etap M4) — bez tego suwak
+// na telefonie zauważalnie się zacina.
+const readoutFrame = { lab: 0, comp: 0 };
+
 function onSlider(mode, key) {
     params[mode][key] = parseFloat(document.getElementById(mode + '-' + key).value);
-    refreshReadouts(mode);
+    if (readoutFrame[mode]) return;
+    readoutFrame[mode] = requestAnimationFrame(function () {
+        readoutFrame[mode] = 0;
+        refreshReadouts(mode);
+    });
 }
 
 function refreshReadouts(mode) {
@@ -192,6 +275,12 @@ function refreshReadouts(mode) {
     for (const s of SLIDERS) {
         const el = document.getElementById(mode + '-val-' + s.key);
         if (el) el.textContent = p[s.key].toFixed(s.step < 1 ? 1 : 0) + ' ' + s.unit;
+        // Stepper wygaszony na krańcu zakresu — inaczej tapnięcie w plus przy
+        // 99°C nie robi nic i wygląda na zepsuty przycisk (Etap M4).
+        const dec = document.getElementById(mode + '-' + s.key + '-dec');
+        const inc = document.getElementById(mode + '-' + s.key + '-inc');
+        if (dec) dec.disabled = p[s.key] <= s.min;
+        if (inc) inc.disabled = p[s.key] >= s.max;
     }
     const eq = currentEquipment(), coffee = currentCoffee();
     const bins = BrewEngine.particleBins(p.grind, eq.grinder.gsd);
