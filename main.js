@@ -18,12 +18,31 @@ function updateTopBar() {
         l.className = 'absolute top-1 right-3 text-xs text-emerald-400';
         l.innerHTML = '<i class="fas fa-unlock"></i>';
         document.getElementById('nav-konkurs').classList.remove('opacity-50');
+        // Etap M1: ta sama zmiana w dolnym pasku zakładek — kłódka przy
+        // etykiecie znika w całości, bo w 11-punktowym podpisie ikona
+        // "otwartej kłódki" jest nieczytelna.
+        const tl = document.getElementById('tab-comp-lock-icon');
+        if (tl) tl.remove();
+        document.getElementById('tab-konkurs').classList.remove('tab-locked');
         showModal('Nowy etap', 'Masz ' + REQ_REP_COMP + ' punktów reputacji — możesz zapisać się na Otwarte Mistrzostwa Świdnicy.', 'fa-trophy', 'text-amber-500');
     }
 
     Kawiarnia.renderEquipmentPanel();
     Kawiarnia.renderLocationPanel();
     Konkursy.refresh();
+}
+
+// Etap M1: na telefonie pasek u góry pokazuje tylko trzy wskaźniki, które
+// zmieniają się w trakcie zwykłej pętli gry (budżet, reputacja, dzień).
+// Sława i rekord to wskaźniki, do których zagląda się okazjonalnie — siedzą
+// pod rozwinięciem, żeby nagłówek mieścił się w jednym wierszu.
+function toggleStats() {
+    const expanded = document.body.classList.toggle('stats-expanded');
+    const btn = document.getElementById('btn-stats-toggle');
+    btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    btn.setAttribute('aria-label', expanded ? 'Ukryj sławę i rekord' : 'Pokaż sławę i rekord');
+    document.getElementById('stats-toggle-icon').className =
+        'fas text-xs ' + (expanded ? 'fa-chevron-up' : 'fa-chevron-down');
 }
 
 function switchView(view) {
@@ -34,9 +53,16 @@ function switchView(view) {
     ['kawiarnia', 'sklep', 'laboratorium', 'konkurs'].forEach(v => {
         document.getElementById('view-' + v).classList.add('view-hidden');
         document.getElementById('nav-' + v).classList.remove('border-amber-500', 'text-white');
+        document.getElementById('tab-' + v).classList.remove('tab-active');
     });
     document.getElementById('view-' + view).classList.remove('view-hidden');
     document.getElementById('nav-' + view).classList.add('border-amber-500', 'text-white');
+    document.getElementById('tab-' + view).classList.add('tab-active');
+    // Widoki są przełączane w JEDNYM kontenerze przewijania (<main>), więc bez
+    // tego zakładka otwarta po zescrollowaniu poprzedniej zaczynałaby się w
+    // połowie treści. Na telefonie to było praktycznie nie do zauważenia jako
+    // "przełączyłem widok" — wyglądało na pustą stronę.
+    document.querySelector('main').scrollTop = 0;
     if (view === 'sklep') Sklep.render();
     if (view === 'laboratorium') refreshReadouts('lab');
     if (view === 'konkurs') Konkursy.refresh();

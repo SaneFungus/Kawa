@@ -88,27 +88,32 @@ const Kawiarnia = (function () {
     // przeprowadzce albo zatrudnieniu barmana) — osobno od updateStationButtons(),
     // żeby zwykłe odświeżenie panelu (na każdą zmianę stanu gracza) nie zrywało
     // animacji parzenia w toku na innym stanowisku.
+    // Etap M2: stanowiska przeniesione do doku przyklejonego do dołu ekranu —
+    // obsługa klienta to najczęściej powtarzana akcja w całej grze, więc nie
+    // może odjeżdżać wraz ze scrollem logu zamówień czy panelu lokalu.
+    // Stanowiska stoją obok siebie w jednym wierszu (maksymalnie dwa wg
+    // LOCATIONS), a status kolejki jest podpisem pod nimi.
     function renderStations() {
         const loc = PlayerProfile.getLocation();
         const host = document.getElementById('stations-panel');
-        let html = '';
+        let html = '<div class="flex gap-2 items-stretch">';
         for (let i = 0; i < loc.stations; i++) {
             const isBarmanSlot = (i === loc.stations - 1 && PlayerProfile.hasBarman());
             if (isBarmanSlot) {
-                html += '<div class="text-center bg-emerald-50 border border-emerald-200 rounded-lg p-4">' +
-                    '<i class="fas fa-user-tie text-emerald-600 mb-1"></i>' +
-                    '<p class="text-sm font-semibold text-emerald-700">Barman pracuje</p>' +
-                    '<div class="mt-2 h-3 w-full bg-emerald-100 rounded-full overflow-hidden hidden" id="work-progress-container-' + i + '">' +
+                html += '<div class="flex-1 min-w-0 flex flex-col justify-center text-center bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-2">' +
+                    '<p class="text-xs font-semibold text-emerald-700 leading-tight"><i class="fas fa-user-tie mr-1"></i>Barman pracuje</p>' +
+                    '<div class="mt-1.5 h-2 w-full bg-emerald-100 rounded-full overflow-hidden hidden" id="work-progress-container-' + i + '">' +
                     '<div id="work-progress-' + i + '" class="h-full bg-emerald-500 progress-bar-fill" style="width:0%"></div></div>' +
                     '</div>';
             } else {
-                html += '<div class="text-center">' +
-                    '<button id="btn-work-' + i + '" onclick="Kawiarnia.serveCustomer(' + i + ')" class="w-full bg-amber-700 hover:bg-amber-800 text-white font-bold py-4 px-6 rounded-lg shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3"><i class="fas fa-coffee"></i> Zaparz przelew dla klienta</button>' +
-                    '<div class="mt-2 h-4 w-full bg-stone-200 rounded-full overflow-hidden hidden" id="work-progress-container-' + i + '">' +
+                html += '<div class="flex-1 min-w-0">' +
+                    '<button id="btn-work-' + i + '" onclick="Kawiarnia.serveCustomer(' + i + ')" class="w-full bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 px-3 rounded-lg shadow-md transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 text-sm md:text-base"><i class="fas fa-coffee"></i><span>Zaparz przelew</span></button>' +
+                    '<div class="mt-1.5 h-2 w-full bg-stone-200 rounded-full overflow-hidden hidden" id="work-progress-container-' + i + '">' +
                     '<div id="work-progress-' + i + '" class="h-full bg-amber-500 progress-bar-fill" style="width:0%"></div></div>' +
                     '</div>';
             }
         }
+        html += '</div><p id="queue-status" class="text-xs text-stone-500 mt-2 text-center"></p>';
         host.innerHTML = html;
         updateStationButtons();
     }

@@ -34,12 +34,18 @@ const Konkursy = (function () {
 
     function buildControls() {
         const host = document.getElementById(mode + '-controls');
-        let html = buildControlsSkeleton(mode);
-        html += '<button id="btn-pour-comp" onclick="launchPour(\'comp\')" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-4 px-4 rounded-lg shadow text-lg disabled:opacity-50 disabled:cursor-not-allowed"><i class="fas fa-play mr-2"></i>Rozpocznij prezentację</button>';
-        html += '<p class="text-[11px] text-stone-500 text-center">Na zawodach parzysz wyłącznie ręcznie — sędziowie oceniają też przebieg pracy.</p>';
-        html += '<button id="btn-brew-comp" class="hidden"></button>';
-        html += progressBarHtml(mode);
-        host.innerHTML = html;
+        host.innerHTML = buildControlsSkeleton(mode);
+
+        // Etap M2: start prezentacji w doku przyklejonym do dołu ekranu.
+        // `btn-brew-comp` zostaje ukrytą atrapą — refreshReadouts() blokuje
+        // oba przyciski trybu jednym kodem wspólnym z Laboratorium, a na
+        // zawodach auto-parzenie nie istnieje.
+        renderDock('dock-' + mode,
+            progressBarHtml(mode) +
+            '<button id="btn-pour-comp" onclick="launchPour(\'comp\')" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 px-4 rounded-lg shadow text-base md:text-lg active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed">' +
+            '<i class="fas fa-play mr-2"></i>Rozpocznij prezentację</button>' +
+            '<button id="btn-brew-comp" class="hidden"></button>' +
+            '<p class="text-[11px] text-stone-500 text-center mt-2">Na zawodach parzysz wyłącznie ręcznie — sędziowie oceniają też przebieg pracy.</p>');
 
         if (!activeTierId) {
             const firstUnlocked = COMPETITIONS.find(isTierUnlocked);

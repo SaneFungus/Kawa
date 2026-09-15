@@ -2,13 +2,36 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Barista Simulator: Droga do WBrC — v2</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
-    body { font-family: 'Inter', sans-serif; background-color: #F5F5F4; color: #292524; }
+
+    /* ---------------------------------------------------------------------
+       Etap M0 — fundament mobilny.
+       Jednostki i wcięcia bezpieczne na telefonie trzymamy w JEDNYM miejscu,
+       zamiast rozsypywać arbitralne wartości po klasach Tailwinda:
+       - 100dvh zamiast 100vh, bo pasek adresu przeglądarki mobilnej zmienia
+         wysokość viewportu w trakcie scrollowania (100vh przycina dół),
+       - env(safe-area-inset-*) pod notch i pasek gestów iOS,
+       - --tap: minimalny cel dotykowy (44 px wg WCAG 2.5.5 / HIG).
+       --------------------------------------------------------------------- */
+    :root {
+        --tap: 44px;
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #F5F5F4;
+        color: #292524;
+        height: 100vh;      /* fallback dla przeglądarek bez dvh */
+        height: 100dvh;
+        overscroll-behavior: none;  /* bez "gumowego" odbicia całej strony */
+    }
     h1, h2, h3, .serif { font-family: 'Playfair Display', serif; }
     .coffee-gradient { background: linear-gradient(135deg, #78350f 0%, #451a03 100%); }
     .custom-scrollbar::-webkit-scrollbar { width: 8px; }
@@ -19,100 +42,194 @@
     .sensory-bar { transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
     .bcc-dot { transition: cx 0.4s ease, cy 0.4s ease; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .app-header { padding-top: var(--safe-top); }
+
+    /* ---------------------------------------------------------------------
+       Etap M1 — pasek statystyk.
+       Na telefonie kafelek kurczy się do "ikona + wartość" w jednej linii
+       (etykieta słowna znika, bo zajmuje drugi wiersz na każdym z pięciu
+       kafelków), a dwa drugorzędne wskaźniki — Sława i Rekord — chowają się
+       pod rozwijanym przyciskiem. Na desktopie wygląd zostaje bez zmian.
+       --------------------------------------------------------------------- */
+    .stat-tile {
+        display: flex; align-items: center;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 0.25rem;
+        line-height: 1.15;
+        gap: 0.35rem;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    .stat-tile .stat-icon { font-size: 0.7rem; opacity: 0.75; }
+    .stat-tile .stat-label { display: none; }
+    .stats-secondary { display: none; }
+    body.stats-expanded .stats-secondary { display: flex; }
+
+    @media (min-width: 768px) {
+        .stat-tile {
+            flex-direction: column; gap: 0;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        .stat-tile .stat-icon { display: none; }
+        .stat-tile .stat-label { display: block; font-size: 0.75rem; color: #d6d3d1; }
+        .stats-secondary { display: flex; }
+        #btn-stats-toggle { display: none; }
+    }
+
+    /* ---------------------------------------------------------------------
+       Etap M1 — dolny pasek zakładek (strefa kciuka).
+       Jest zwykłym elementem kolumny flex (a nie position:fixed), więc nie
+       nachodzi na treść i nie wymaga sztucznego paddingu w <main>.
+       --------------------------------------------------------------------- */
+    #tabbar { padding-bottom: var(--safe-bottom); }
+    .tab-btn {
+        flex: 1 1 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 2px;
+        min-height: var(--tap);
+        padding: 0.4rem 0.25rem;
+        color: #a8a29e;
+        border-top: 2px solid transparent;
+        transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn i { font-size: 1.05rem; }
+    .tab-btn .tab-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.01em; }
+    .tab-btn.tab-active { color: #fbbf24; border-top-color: #f59e0b; }
+    .tab-btn.tab-locked { opacity: 0.45; }
+
+    /* ---------------------------------------------------------------------
+       Etap M2 — dok akcji.
+       Główna, powtarzalna akcja widoku przykleja się do dolnej krawędzi
+       obszaru przewijania, więc jej powtórzenie nigdy nie wymaga scrollowania
+       (position:sticky liczy "bottom" względem scrollportu <main>, nie
+       względem jego paddingu). Na mobile dok jest pełnoszerokim pasem,
+       na desktopie — zaokrąglonym dokiem w kolumnie treści.
+       --------------------------------------------------------------------- */
+    .action-dock {
+        position: sticky;
+        /* Dolny padding <main> jest wyzerowany (dok sam wnosi swój oddech),
+           bo element sticky nie zejdzie niżej niż dolna krawędź swojego
+           kontenera — inaczej pod dokiem przebijałby pasek przewijanej treści. */
+        bottom: 0;
+        z-index: 20;
+        margin: 1rem -1rem 0;
+        padding: 0.6rem 1rem;
+        background: rgba(255, 255, 255, 0.93);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-top: 1px solid #e7e5e4;
+    }
+    .action-dock:empty { display: none; }
+    @media (min-width: 768px) {
+        .action-dock {
+            bottom: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid #e7e5e4;
+            border-radius: 0.75rem;
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+        }
+    }
+    /* Przyciski w doku zawsze spełniają minimalny cel dotykowy. */
+    .action-dock button { min-height: var(--tap); }
 </style>
 </head>
-<body class="h-screen w-screen overflow-hidden flex flex-col">
+<body class="overflow-hidden flex flex-col">
 
-<header class="coffee-gradient text-stone-100 shadow-md z-10 flex-shrink-0">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row md:justify-between items-center gap-2">
-        <div class="flex items-center gap-3">
-            <i class="fas fa-mug-hot text-2xl text-amber-500"></i>
-            <h1 class="text-xl font-bold tracking-wide">WBrC Simulator <span class="text-xs text-amber-500/70 align-top">v2</span></h1>
+<header class="coffee-gradient text-stone-100 shadow-md z-30 flex-shrink-0 app-header">
+    <div class="max-w-6xl mx-auto px-3 md:px-4 py-2 md:py-3 flex flex-row md:justify-between items-center gap-2 md:gap-3">
+        <div class="flex items-center gap-2 md:gap-3 shrink-0">
+            <i class="fas fa-mug-hot text-xl md:text-2xl text-amber-500"></i>
+            <h1 class="text-base md:text-xl font-bold tracking-wide whitespace-nowrap">WBrC<span class="hidden sm:inline"> Simulator</span> <span class="text-[10px] md:text-xs text-amber-500/70 align-top">v2</span></h1>
         </div>
-        <div class="flex flex-wrap justify-center gap-2 md:gap-3 lg:gap-6 text-sm font-semibold">
-            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
-                <span class="text-stone-300 text-xs">Budżet</span>
+        <div class="flex flex-1 md:flex-none flex-wrap justify-end md:justify-center items-center gap-1.5 md:gap-3 lg:gap-6 font-semibold">
+            <div class="stat-tile">
+                <i class="fas fa-wallet stat-icon text-emerald-400"></i>
+                <span class="stat-label">Budżet</span>
                 <span id="ui-money" class="text-emerald-400">0 PLN</span>
             </div>
-            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
-                <span class="text-stone-300 text-xs">Reputacja</span>
+            <div class="stat-tile">
+                <i class="fas fa-star stat-icon text-amber-400"></i>
+                <span class="stat-label">Reputacja</span>
                 <span id="ui-rep" class="text-amber-400">0 pkt</span>
             </div>
-            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
-                <span class="text-stone-300 text-xs">Sława</span>
-                <span id="ui-fame" class="text-fuchsia-400">0 pkt</span>
-            </div>
-            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
-                <span class="text-stone-300 text-xs">Rekord</span>
-                <span id="ui-best" class="text-sky-400">—</span>
-            </div>
-            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
-                <span class="text-stone-300 text-xs">Dzień</span>
+            <div class="stat-tile">
+                <i class="fas fa-calendar-day stat-icon text-stone-300"></i>
+                <span class="stat-label">Dzień</span>
                 <span id="ui-day" class="text-stone-200">1</span>
             </div>
+            <div class="stat-tile stats-secondary">
+                <i class="fas fa-bolt stat-icon text-fuchsia-400"></i>
+                <span class="stat-label">Sława</span>
+                <span id="ui-fame" class="text-fuchsia-400">0 pkt</span>
+            </div>
+            <div class="stat-tile stats-secondary">
+                <i class="fas fa-medal stat-icon text-sky-400"></i>
+                <span class="stat-label">Rekord</span>
+                <span id="ui-best" class="text-sky-400">—</span>
+            </div>
+            <button id="btn-stats-toggle" onclick="toggleStats()" aria-expanded="false" aria-label="Pokaż sławę i rekord"
+                class="bg-black/20 rounded text-stone-300 px-2" style="min-height:2rem;min-width:2rem">
+                <i class="fas fa-chevron-down text-xs" id="stats-toggle-icon"></i>
+            </button>
         </div>
     </div>
-    <nav class="bg-stone-900/50 flex flex-wrap md:flex-nowrap justify-center border-b border-stone-700 w-full text-sm">
-        <button onclick="switchView('kawiarnia')" id="nav-kawiarnia" class="w-1/2 md:w-auto px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-store mr-2"></i>Kawiarnia</button>
-        <button onclick="switchView('sklep')" id="nav-sklep" class="w-1/2 md:w-auto px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-shopping-cart mr-2"></i>Sklep</button>
-        <button onclick="switchView('laboratorium')" id="nav-laboratorium" class="w-1/2 md:w-auto px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-flask mr-2"></i>Laboratorium</button>
-        <button onclick="switchView('konkurs')" id="nav-konkurs" class="w-1/2 md:w-auto px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center relative opacity-50"><i class="fas fa-trophy mr-2"></i>Konkurs<span id="comp-lock-icon" class="absolute top-1 right-3 text-xs text-red-500"><i class="fas fa-lock"></i></span></button>
+    <nav class="hidden md:flex bg-stone-900/50 flex-nowrap justify-center border-b border-stone-700 w-full text-sm">
+        <button onclick="switchView('kawiarnia')" id="nav-kawiarnia" class="px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-store mr-2"></i>Kawiarnia</button>
+        <button onclick="switchView('sklep')" id="nav-sklep" class="px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-shopping-cart mr-2"></i>Sklep</button>
+        <button onclick="switchView('laboratorium')" id="nav-laboratorium" class="px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-flask mr-2"></i>Laboratorium</button>
+        <button onclick="switchView('konkurs')" id="nav-konkurs" class="px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center relative opacity-50"><i class="fas fa-trophy mr-2"></i>Konkurs<span id="comp-lock-icon" class="absolute top-1 right-3 text-xs text-red-500"><i class="fas fa-lock"></i></span></button>
     </nav>
 </header>
 
-<main class="flex-1 overflow-y-auto custom-scrollbar relative p-4 md:p-8">
+<main class="flex-1 overflow-y-auto custom-scrollbar relative p-4 pb-0 md:p-8 md:pb-0">
 
     <!-- ====================== KAWIARNIA ====================== -->
     <section id="view-kawiarnia" class="max-w-4xl mx-auto space-y-6">
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200">
             <h2 id="kawiarnia-title" class="text-2xl mb-2 text-stone-800">Kawiarnia Osiedlowa</h2>
-            <p class="text-stone-600 mb-6">Pracuj za barem, parz przelewy dla mieszkańców. Jakość sprzętu i ziarna przekłada się na napiwki oraz tempo budowania reputacji.</p>
-            <div class="flex flex-col md:flex-row gap-8 items-center justify-center bg-stone-50 p-8 rounded-lg border border-stone-100">
-                <div class="text-center w-full md:w-1/2">
-                    <i class="fas fa-users text-4xl text-stone-400 mb-4"></i>
-                    <h3 class="text-lg font-semibold mb-4">Kolejka klientów</h3>
-                    <div id="stations-panel" class="w-full space-y-4"></div>
-                    <p id="queue-status" class="text-xs text-stone-500 mt-2"></p>
-                </div>
-                <div class="w-full md:w-1/2 bg-white p-4 rounded-lg shadow-inner text-sm space-y-2 border border-stone-200">
-                    <h4 class="font-bold text-stone-700 border-b pb-2 mb-2"><i class="fas fa-history mr-2"></i>Ostatnie zamówienia</h4>
-                    <ul id="work-log" class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
-                        <li class="text-stone-400 italic">Oczekujesz na klientów...</li>
-                    </ul>
-                </div>
+            <p class="text-stone-600 mb-5 text-sm md:text-base">Pracuj za barem, parz przelewy dla mieszkańców. Jakość sprzętu i ziarna przekłada się na napiwki oraz tempo budowania reputacji.</p>
+            <div class="bg-white p-4 rounded-lg shadow-inner text-sm space-y-2 border border-stone-200">
+                <h4 class="font-bold text-stone-700 border-b pb-2 mb-2"><i class="fas fa-history mr-2"></i>Ostatnie zamówienia</h4>
+                <ul id="work-log" class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                    <li class="text-stone-400 italic">Oczekujesz na klientów...</li>
+                </ul>
             </div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200">
             <h3 class="font-bold text-stone-800 mb-4"><i class="fas fa-toolbox mr-2"></i>Twój aktualny setup</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm" id="eq-panel"></div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200" id="location-panel"></div>
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200" id="location-panel"></div>
+        <!-- Dok akcji: stanowiska pracy (Etap M2). Wypełniany przez Kawiarnia.renderStations(). -->
+        <div class="action-dock" id="stations-panel"></div>
     </section>
 
     <!-- ====================== SKLEP ====================== -->
-    <section id="view-sklep" class="max-w-6xl mx-auto space-y-6 view-hidden">
+    <section id="view-sklep" class="max-w-6xl mx-auto space-y-6 pb-4 md:pb-8 view-hidden">
         <div class="text-center mb-8">
-            <h2 class="text-3xl font-bold text-stone-800">Sklep Specjalistyczny</h2>
-            <p class="text-stone-600 mt-2">Każdy przedmiot zmienia konkretny parametr modelu ekstrakcji. Najedź, żeby zobaczyć wpływ na fizykę parzenia.</p>
+            <h2 class="text-2xl md:text-3xl font-bold text-stone-800">Sklep Specjalistyczny</h2>
+            <p class="text-stone-600 mt-2 text-sm md:text-base">Każdy przedmiot zmienia konkretny parametr modelu ekstrakcji. Najedź, żeby zobaczyć wpływ na fizykę parzenia.</p>
         </div>
         <div id="shop-container" class="space-y-10"></div>
     </section>
 
     <!-- ====================== LABORATORIUM ====================== -->
     <section id="view-laboratorium" class="max-w-6xl mx-auto space-y-6 view-hidden">
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200">
             <h2 class="text-2xl mb-1 text-stone-800"><i class="fas fa-microscope mr-2 text-amber-700"></i>Laboratorium Ekstrakcji</h2>
             <p class="text-stone-600 text-sm mb-6">Model kinetyczny: czas kontaktu nie jest suwakiem — wynika z oporu złoża. Drobniej zmielisz, wolniej poleci woda, dłużej się ekstrahuje. Celuj w Golden Cup: <strong>EY 18–22%</strong>, <strong>TDS 1,15–1,35%</strong>.</p>
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
                 <!-- Panel nastawu -->
-                <div class="space-y-5 bg-stone-50 p-6 rounded-lg border border-stone-200" id="lab-controls"></div>
+                <div class="space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="lab-controls"></div>
 
                 <!-- Wykres -->
                 <div class="bg-stone-900 rounded-lg p-4 border border-stone-800">
                     <div class="flex justify-between items-center mb-2">
                         <h3 class="font-bold text-stone-300 text-sm"><i class="fas fa-chart-scatter mr-1"></i> Brewing Control Chart</h3>
-                        <button onclick="Lab.clearHistory()" class="text-xs text-stone-500 hover:text-stone-300"><i class="fas fa-eraser mr-1"></i>wyczyść historię</button>
+                        <button onclick="Lab.clearHistory()" class="text-xs text-stone-500 hover:text-stone-300 px-2 py-2 -mr-2"><i class="fas fa-eraser mr-1"></i>wyczyść historię</button>
                     </div>
                     <div id="chart-lab"></div>
                     <p class="text-[11px] text-stone-500 mt-2 leading-relaxed">Pozioma kreska przy punkcie to <strong class="text-stone-400">rozrzut ekstrakcji (σ)</strong> — jak bardzo różne cząstki w tym samym złożu wyekstrahowały się nierówno. Duże σ = jednocześnie kwaśno i ściągająco.</p>
@@ -121,32 +238,34 @@
 
             <!-- Wyniki -->
             <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-stone-900 text-stone-200 p-6 rounded-lg border border-stone-800">
+                <div class="bg-stone-900 text-stone-200 p-4 md:p-6 rounded-lg border border-stone-800">
                     <h3 class="font-bold border-b border-stone-700 pb-2 mb-4 text-stone-300 text-sm uppercase tracking-wider">Odczyt analityczny</h3>
                     <div id="lab-idle" class="py-10 flex flex-col justify-center items-center text-stone-600">
                         <i class="fas fa-tint text-4xl mb-3"></i><p>Oczekuje na próbkę...</p>
                     </div>
                     <div id="lab-metrics" class="hidden grid grid-cols-2 gap-3"></div>
                 </div>
-                <div class="bg-white p-6 rounded-lg border border-stone-200 shadow-sm">
+                <div class="bg-white p-4 md:p-6 rounded-lg border border-stone-200 shadow-sm">
                     <h3 class="font-bold border-b pb-2 mb-4 text-stone-700 text-sm uppercase tracking-wider">Karta sensoryczna (skala WBrC 0–9)</h3>
                     <div id="lab-sensory" class="space-y-2 opacity-30"></div>
                     <div id="lab-verdict" class="mt-4 text-sm italic text-stone-600 border-l-4 border-stone-300 pl-3 py-1"></div>
                 </div>
             </div>
         </div>
+        <!-- Dok akcji: przyciski parzenia (Etap M2). Wypełniany przez Lab.buildControls(). -->
+        <div class="action-dock" id="dock-lab"></div>
     </section>
 
     <!-- ====================== KONKURS ====================== -->
     <section id="view-konkurs" class="max-w-6xl mx-auto space-y-6 view-hidden">
-        <div class="bg-white p-5 rounded-xl shadow-sm border border-stone-200">
+        <div class="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-stone-200">
             <h3 class="font-bold text-stone-700 mb-3 text-sm uppercase tracking-wider"><i class="fas fa-ranking-star mr-2"></i>Drabinka kariery</h3>
             <div id="comp-ladder" class="space-y-2"></div>
         </div>
-        <div class="bg-gradient-to-r from-stone-800 to-stone-900 text-white p-8 rounded-xl shadow-lg relative overflow-hidden">
+        <div class="bg-gradient-to-r from-stone-800 to-stone-900 text-white p-5 md:p-8 rounded-xl shadow-lg relative overflow-hidden">
             <div class="relative z-10">
                 <span id="comp-hero-tier" class="bg-amber-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider"></span>
-                <h2 id="comp-hero-name" class="text-3xl mt-2 mb-1 serif text-amber-400"></h2>
+                <h2 id="comp-hero-name" class="text-2xl md:text-3xl mt-2 mb-1 serif text-amber-400"></h2>
                 <p id="comp-hero-place" class="text-stone-400 text-xs mb-3"></p>
                 <p id="comp-hero-desc" class="mb-3 text-stone-300 max-w-2xl text-sm"></p>
                 <p class="text-stone-300 text-sm">Próg zwycięstwa: <strong id="comp-hero-threshold" class="text-amber-400"></strong> sumy karty sensorycznej.</p>
@@ -154,14 +273,14 @@
             </div>
             <i class="fas fa-award absolute -right-10 -top-10 text-[200px] text-white opacity-5 rotate-12"></i>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow border border-stone-200 grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <div class="space-y-5 bg-stone-50 p-6 rounded-lg border border-stone-200" id="comp-controls"></div>
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200 grid grid-cols-1 xl:grid-cols-2 gap-8">
+            <div class="space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="comp-controls"></div>
             <div class="bg-stone-900 rounded-lg p-4 border border-stone-800">
                 <h3 class="font-bold text-stone-300 text-sm mb-2">Brewing Control Chart</h3>
                 <div id="chart-comp"></div>
             </div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow border border-stone-200 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
                 <div id="comp-idle" class="text-center text-stone-400 py-10"><i class="fas fa-clipboard-list text-5xl mb-4"></i><p>Sędziowie czekają na Twój napar...</p></div>
                 <div id="comp-result" class="hidden text-center">
@@ -179,8 +298,19 @@
                 <div id="comp-sensory" class="space-y-2 opacity-30"></div>
             </div>
         </div>
+        <!-- Dok akcji: start prezentacji (Etap M2). Wypełniany przez Konkursy.buildControls(). -->
+        <div class="action-dock" id="dock-comp"></div>
     </section>
 </main>
+
+<!-- Dolny pasek zakładek — strefa kciuka (Etap M1). Na desktopie ukryty,
+     rolę nawigacji przejmuje pasek pod nagłówkiem. -->
+<nav id="tabbar" class="md:hidden flex-shrink-0 bg-stone-900 border-t border-stone-700 flex z-30">
+    <button onclick="switchView('kawiarnia')" id="tab-kawiarnia" class="tab-btn"><i class="fas fa-store"></i><span class="tab-label">Kawiarnia</span></button>
+    <button onclick="switchView('sklep')" id="tab-sklep" class="tab-btn"><i class="fas fa-shopping-cart"></i><span class="tab-label">Sklep</span></button>
+    <button onclick="switchView('laboratorium')" id="tab-laboratorium" class="tab-btn"><i class="fas fa-flask"></i><span class="tab-label">Lab</span></button>
+    <button onclick="switchView('konkurs')" id="tab-konkurs" class="tab-btn tab-locked"><i class="fas fa-trophy"></i><span class="tab-label">Konkurs <i class="fas fa-lock text-[9px]" id="tab-comp-lock-icon"></i></span></button>
+</nav>
 
 <div id="custom-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full transform scale-95 transition-transform duration-300" id="custom-modal-content">
@@ -188,7 +318,7 @@
             <div id="modal-icon" class="text-4xl mb-4 text-amber-500"><i class="fas fa-info-circle"></i></div>
             <h3 id="modal-title" class="text-xl font-bold text-stone-800 mb-2"></h3>
             <p id="modal-text" class="text-stone-600 mb-6 text-sm"></p>
-            <button onclick="closeModal()" class="bg-stone-800 text-white px-6 py-2 rounded font-semibold hover:bg-black w-full">OK</button>
+            <button onclick="closeModal()" class="bg-stone-800 text-white px-6 py-3 rounded font-semibold hover:bg-black w-full">OK</button>
         </div>
     </div>
 </div>

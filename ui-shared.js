@@ -117,8 +117,20 @@ function buildControlsSkeleton(mode) {
     return html;
 }
 
+// ---------- Dok akcji (Etap M2) ----------
+// Główna, powtarzalna akcja trybu (parzenie, prezentacja, obsługa klienta)
+// mieszka POZA przewijaną treścią — w doku przyklejonym do dolnej krawędzi
+// <main>. Wcześniej te przyciski siedziały na końcu panelu nastawu, czyli po
+// kilku ekranach przewijania na telefonie; powtórzenie akcji kosztowało wtedy
+// scroll w dół po przycisk i scroll w górę po wynik. Moduły budują zawartość
+// doku same (różni się w każdym trybie), wspólne jest tylko wstrzyknięcie.
+function renderDock(hostId, html) {
+    const host = document.getElementById(hostId);
+    if (host) host.innerHTML = html;
+}
+
 function progressBarHtml(mode) {
-    return '<div id="' + mode + '-progress-container" class="h-2 w-full bg-stone-200 rounded-full overflow-hidden hidden"><div id="' + mode + '-progress" class="h-full bg-amber-600 progress-bar-fill" style="width:0%"></div></div>';
+    return '<div id="' + mode + '-progress-container" class="h-2 w-full bg-stone-200 rounded-full overflow-hidden hidden mb-2"><div id="' + mode + '-progress" class="h-full bg-amber-600 progress-bar-fill" style="width:0%"></div></div>';
 }
 
 function onSlider(mode, key) {
