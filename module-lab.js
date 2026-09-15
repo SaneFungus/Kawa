@@ -9,14 +9,18 @@ const Lab = (function () {
     let lastResult = null;
 
     function buildControls() {
-        const host = document.getElementById(mode + '-controls');
-        let html = buildControlsSkeleton(mode);
-        html += '<div class="flex gap-2">' +
-            '<input id="recipe-name-input" type="text" placeholder="Nazwa receptury..." class="flex-1 border border-stone-300 rounded px-3 py-2 text-sm">' +
+        document.getElementById(mode + '-controls').innerHTML = buildControlsSkeleton(mode);
+
+        // Etap M3: receptury to osobna karta, nie ogon panelu nastawu — panel
+        // wędruje na telefonie do szuflady, a zapisaną recepturę czyta się
+        // razem z wynikiem parzenia.
+        document.getElementById('lab-recipes').innerHTML =
+            '<h3 class="font-bold text-stone-700 text-sm uppercase tracking-wider border-b pb-2"><i class="fas fa-bookmark mr-2"></i>Receptury</h3>' +
+            '<div class="flex gap-2">' +
+            '<input id="recipe-name-input" type="text" placeholder="Nazwa receptury..." class="flex-1 min-w-0 border border-stone-300 rounded px-3 py-2 text-sm">' +
             '<button id="btn-save-recipe" onclick="Lab.saveCurrentRecipe()" disabled class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold py-2 px-4 rounded shadow text-sm disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"><i class="fas fa-bookmark mr-2"></i>Zapisz</button>' +
-            '</div>';
-        html += '<div id="recipe-list" class="space-y-1"></div>';
-        host.innerHTML = html;
+            '</div>' +
+            '<div id="recipe-list" class="space-y-1"></div>';
         buildDock();
         refreshReadouts(mode);
         renderRecipeList();
@@ -28,6 +32,7 @@ const Lab = (function () {
     // żeby oba przyciski zmieściły się w jednym wierszu.
     function buildDock() {
         renderDock('dock-' + mode,
+            setupSummaryHtml(mode) +
             progressBarHtml(mode) +
             '<div class="flex gap-2">' +
             '<button id="btn-pour-lab" onclick="launchPour(\'lab\')" class="flex-[2] min-w-0 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-3 rounded-lg shadow active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed">' +

@@ -98,7 +98,7 @@ function drawChart(mode, current, liveRatio) {
 
 // ---------- Panel suwaków (współdzielony szkielet Lab/Konkursy) ----------
 function buildControlsSkeleton(mode) {
-    let html = '<h3 class="font-bold border-b pb-2 text-stone-700">Parametry nastawu</h3>';
+    let html = '<h3 class="controls-title font-bold border-b pb-2 text-stone-700">Parametry nastawu</h3>';
     for (const s of SLIDERS) {
         html += '<div>' +
             '<label class="flex justify-between text-sm font-semibold mb-1">' +
@@ -129,6 +129,55 @@ function renderDock(hostId, html) {
     if (host) host.innerHTML = html;
 }
 
+// ---------- Pasek podsumowania nastawu (Etap M3) ----------
+// Zastępuje na telefonie cały panel suwaków: pokazuje nastaw i to, co z niego
+// wynika, w dwóch wierszach, a tapnięcie otwiera szufladę z suwakami. Dzięki
+// temu pętla « zmień nastaw -> parz -> zobacz wynik » mieści się bez
+// przewijania, zamiast kosztować dwa pełne przewinięcia na każdą próbę.
+function setupSummaryHtml(mode) {
+    return '<button type="button" onclick="openSheet(\'' + mode + '\')" ' +
+        'class="md:hidden w-full flex items-center gap-2 mb-2 px-3 py-2 bg-stone-100 hover:bg-stone-200 active:bg-stone-200 border border-stone-200 rounded-lg text-left">' +
+        '<i class="fas fa-sliders text-stone-500 shrink-0" aria-hidden="true"></i>' +
+        '<span class="flex-1 min-w-0 mono text-[11px] leading-snug">' +
+        '<span id="' + mode + '-sum-params" class="block truncate text-stone-800 font-bold"></span>' +
+        '<span id="' + mode + '-sum-derived" class="block truncate text-stone-500"></span>' +
+        '</span>' +
+        '<span class="text-xs font-semibold text-amber-700 shrink-0">Zmień</span></button>';
+}
+
+// ---------- Szuflada nastawu (Etap M3) ----------
+// Panel suwaków jest PRZENOSZONY do szuflady i z powrotem, nie duplikowany —
+// dwa komplety suwaków o tych samych id rozjechałyby refreshReadouts().
+// Miejsce powrotu zapamiętujemy przez kotwicę (następne rodzeństwo), bo panel
+// nie zawsze jest ostatnim dzieckiem swojego kontenera.
+let sheetState = null;
+
+function openSheet(mode) {
+    if (sheetState) return;
+    const panel = document.getElementById(mode + '-controls');
+    const body = document.getElementById('sheet-body');
+    if (!panel || !body) return;
+    sheetState = { panel: panel, parent: panel.parentNode, before: panel.nextSibling };
+    panel.classList.add('in-sheet');
+    body.appendChild(panel);
+    body.scrollTop = 0;
+    document.getElementById('sheet').classList.add('sheet-open');
+    document.getElementById('sheet-backdrop').classList.add('sheet-open');
+}
+
+function closeSheet() {
+    if (!sheetState) return;
+    document.getElementById('sheet').classList.remove('sheet-open');
+    document.getElementById('sheet-backdrop').classList.remove('sheet-open');
+    const st = sheetState;
+    sheetState = null;
+    // Powrót panelu dopiero po animacji zjazdu — inaczej znikałby w trakcie.
+    setTimeout(function () {
+        st.panel.classList.remove('in-sheet');
+        st.parent.insertBefore(st.panel, st.before);
+    }, 300);
+}
+
 function progressBarHtml(mode) {
     return '<div id="' + mode + '-progress-container" class="h-2 w-full bg-stone-200 rounded-full overflow-hidden hidden mb-2"><div id="' + mode + '-progress" class="h-full bg-amber-600 progress-bar-fill" style="width:0%"></div></div>';
 }
@@ -150,8 +199,9 @@ function refreshReadouts(mode) {
     const fines = bins.reduce((a, b) => a + (b.d < 200 ? b.w : 0), 0) * 100;
     const ratio = p.water / p.dose;
 
+    const timeStr = Math.floor(t / 60) + ':' + String(Math.round(t % 60)).padStart(2, '0');
     setText(mode + '-out-ratio', '1:' + ratio.toFixed(1));
-    setText(mode + '-out-time', Math.floor(t / 60) + ':' + String(Math.round(t % 60)).padStart(2, '0'));
+    setText(mode + '-out-time', timeStr);
     const fEl = document.getElementById(mode + '-out-fines');
     if (fEl) {
         fEl.textContent = fines.toFixed(1) + '%';
@@ -171,6 +221,17 @@ function refreshReadouts(mode) {
     // ziarno na dany szczebel. Liczony tu, w JEDNYM miejscu z pełnym
     // przeliczeniem obu kierunków, żeby dokup/zmiana ziarna zawsze poprawnie
     // odblokowywały przycisk z powrotem (ten sam błąd co przy zapasie w Etapie 5).
+    // Pasek podsumowania w doku (Etap M3) — jedyny widok nastawu na telefonie,
+    // więc musi nieść komplet: sam nastaw i to, co z niego wynika.
+    setText(mode + '-sum-params', p.dose.toFixed(1) + ' g · ' + p.water.toFixed(0) + ' g · ' +
+        p.grind.toFixed(0) + ' µm · ' + p.temp.toFixed(1) + '°C');
+    // Zapas ziarna dopisujemy tylko wtedy, gdy realnie blokuje parzenie —
+    // w komplecie druga linia ucinała się na 375 px, a przy pełnym zapasie
+    // jest to informacja bez konsekwencji (w szufladzie widać ją zawsze).
+    const stock = PlayerProfile.getCurrentCoffeeStock();
+    setText(mode + '-sum-derived', '1:' + ratio.toFixed(1) + ' · ' + timeStr + ' · pył ' +
+        fines.toFixed(1) + '%' + (stock < p.dose ? ' · brak ziarna (' + stock + ' g)' : ''));
+
     const entryOk = mode !== 'comp' || Konkursy.checkEntry().ok;
     const brewBtn = document.getElementById('btn-brew-' + mode);
     const pourBtn = document.getElementById('btn-pour-' + mode);

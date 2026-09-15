@@ -41,6 +41,7 @@ const Konkursy = (function () {
         // oba przyciski trybu jednym kodem wspólnym z Laboratorium, a na
         // zawodach auto-parzenie nie istnieje.
         renderDock('dock-' + mode,
+            setupSummaryHtml(mode) +
             progressBarHtml(mode) +
             '<button id="btn-pour-comp" onclick="launchPour(\'comp\')" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 px-4 rounded-lg shadow text-base md:text-lg active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed">' +
             '<i class="fas fa-play mr-2"></i>Rozpocznij prezentację</button>' +

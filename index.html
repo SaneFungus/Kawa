@@ -133,6 +133,43 @@
     }
     /* Przyciski w doku zawsze spełniają minimalny cel dotykowy. */
     .action-dock button { min-height: var(--tap); }
+
+    /* ---------------------------------------------------------------------
+       Etap M3 — szuflada nastawu.
+       Na telefonie panel suwaków nie stoi w kolumnie treści (cztery suwaki
+       plus odczyt to ponad ekran przewijania przed przyciskiem parzenia) —
+       jest wysuwany od dołu na żądanie, a w treści zostaje jednowierszowy
+       pasek podsumowania w doku. Na desktopie nic się nie zmienia: panel
+       stoi tam, gdzie stał, a szuflada i pasek podsumowania są ukryte.
+
+       Panel jest PRZENOSZONY w DOM do szuflady (openSheet/closeSheet), a nie
+       duplikowany — inaczej powstałyby dwa komplety suwaków o tych samych
+       identyfikatorach, a refreshReadouts() adresuje je właśnie po id.
+       --------------------------------------------------------------------- */
+    @media (max-width: 767px) {
+        .controls-panel { display: none; }
+        .controls-panel.in-sheet {
+            display: block;
+            background: transparent;
+            border: 0;
+            padding: 0;
+        }
+        .controls-panel.in-sheet .controls-title { display: none; }
+    }
+
+    #sheet {
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        max-height: 82dvh;
+    }
+    #sheet.sheet-open { transform: translateY(0); }
+    #sheet-backdrop {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+    }
+    #sheet-backdrop.sheet-open { opacity: 1; pointer-events: auto; }
+    #sheet-body { padding-bottom: calc(1rem + var(--safe-bottom)); }
 </style>
 </head>
 <body class="overflow-hidden flex flex-col">
@@ -222,8 +259,8 @@
             <p class="text-stone-600 text-sm mb-6">Model kinetyczny: czas kontaktu nie jest suwakiem — wynika z oporu złoża. Drobniej zmielisz, wolniej poleci woda, dłużej się ekstrahuje. Celuj w Golden Cup: <strong>EY 18–22%</strong>, <strong>TDS 1,15–1,35%</strong>.</p>
 
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                <!-- Panel nastawu -->
-                <div class="space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="lab-controls"></div>
+                <!-- Panel nastawu (na telefonie przenoszony do szuflady, Etap M3) -->
+                <div class="controls-panel space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="lab-controls"></div>
 
                 <!-- Wykres -->
                 <div class="bg-stone-900 rounded-lg p-4 border border-stone-800">
@@ -251,6 +288,11 @@
                     <div id="lab-verdict" class="mt-4 text-sm italic text-stone-600 border-l-4 border-stone-300 pl-3 py-1"></div>
                 </div>
             </div>
+
+            <!-- Receptury: wyjęte z panelu nastawu (Etap M3), bo nie są jego
+                 częścią — panel wędruje na telefonie do szuflady, a zapisane
+                 receptury czyta się razem z wynikiem. -->
+            <div class="mt-6 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200 space-y-3" id="lab-recipes"></div>
         </div>
         <!-- Dok akcji: przyciski parzenia (Etap M2). Wypełniany przez Lab.buildControls(). -->
         <div class="action-dock" id="dock-lab"></div>
@@ -274,7 +316,7 @@
             <i class="fas fa-award absolute -right-10 -top-10 text-[200px] text-white opacity-5 rotate-12"></i>
         </div>
         <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200 grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <div class="space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="comp-controls"></div>
+            <div class="controls-panel space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="comp-controls"></div>
             <div class="bg-stone-900 rounded-lg p-4 border border-stone-800">
                 <h3 class="font-bold text-stone-300 text-sm mb-2">Brewing Control Chart</h3>
                 <div id="chart-comp"></div>
@@ -311,6 +353,18 @@
     <button onclick="switchView('laboratorium')" id="tab-laboratorium" class="tab-btn"><i class="fas fa-flask"></i><span class="tab-label">Lab</span></button>
     <button onclick="switchView('konkurs')" id="tab-konkurs" class="tab-btn tab-locked"><i class="fas fa-trophy"></i><span class="tab-label">Konkurs <i class="fas fa-lock text-[9px]" id="tab-comp-lock-icon"></i></span></button>
 </nav>
+
+<!-- Szuflada nastawu (Etap M3). z-40: nad dolnym paskiem zakładek (z-30),
+     pod modalem (z-50) i mini-grą (z-60). -->
+<div id="sheet-backdrop" onclick="closeSheet()" class="md:hidden fixed inset-0 bg-black/50 z-40"></div>
+<div id="sheet" class="md:hidden fixed inset-x-0 bottom-0 z-40 flex flex-col bg-white rounded-t-2xl shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="shrink-0 pt-2 pb-1 flex justify-center"><span class="block w-10 h-1 rounded-full bg-stone-300"></span></div>
+    <div class="shrink-0 flex items-center justify-between px-4 pb-2 border-b border-stone-200">
+        <h3 id="sheet-title" class="font-bold text-stone-800">Parametry nastawu</h3>
+        <button onclick="closeSheet()" class="text-sm font-semibold text-amber-700 px-3 py-2 -mr-3">Gotowe</button>
+    </div>
+    <div id="sheet-body" class="flex-1 overflow-y-auto custom-scrollbar px-4 pt-4"></div>
+</div>
 
 <div id="custom-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full transform scale-95 transition-transform duration-300" id="custom-modal-content">

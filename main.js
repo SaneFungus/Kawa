@@ -46,6 +46,9 @@ function toggleStats() {
 }
 
 function switchView(view) {
+    // Etap M3: szuflada nastawu należy do konkretnego trybu (jej panel jest
+    // fizycznie przeniesiony z widoku), więc nie może przeżyć przełączenia.
+    closeSheet();
     if (view === 'konkurs' && !PlayerProfile.isCompUnlocked()) {
         showModal('Brak dostępu', 'Potrzebujesz ' + REQ_REP_COMP + ' punktów reputacji. Pracuj w kawiarni.', 'fa-lock', 'text-red-500');
         return;
@@ -86,7 +89,10 @@ window.onload = function () {
         if (e.target === modalBackdrop) closeModal();
     });
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && !modalBackdrop.classList.contains('pointer-events-none')) closeModal();
+        if (e.key !== 'Escape') return;
+        // Modal leży nad szufladą, więc Escape zamyka najpierw to, co na wierzchu.
+        if (!modalBackdrop.classList.contains('pointer-events-none')) closeModal();
+        else closeSheet();
     });
 
     // StoryEvents.init() pokazuje Prolog przy pierwszej sesji gracza (raz,
