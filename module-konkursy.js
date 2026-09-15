@@ -48,6 +48,8 @@ const Konkursy = (function () {
             '<button id="btn-brew-comp" class="hidden"></button>' +
             '<p class="text-[11px] text-stone-500 text-center mt-2">Na zawodach parzysz wyłącznie ręcznie — sędziowie oceniają też przebieg pracy.</p>');
 
+        buildResultTabs(mode, { wynik: 'Werdykt', sensoryka: 'Karta sędziów', wykres: 'Wykres' });
+
         if (!activeTierId) {
             const firstUnlocked = COMPETITIONS.find(isTierUnlocked);
             activeTierId = firstUnlocked ? firstUnlocked.id : COMPETITIONS[0].id;

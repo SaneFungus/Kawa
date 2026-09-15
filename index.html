@@ -212,6 +212,75 @@
        być niższe, bo celuje się w nie myszą. */
     .preset-chip { min-height: var(--tap); }
     @media (min-width: 768px) { .preset-chip { min-height: 2rem; } }
+
+    /* ---------------------------------------------------------------------
+       Etap M5 — karta wyniku.
+       Odczyt, karta sensoryczna i wykres stały wcześniej jeden pod drugim,
+       więc po zaparzeniu trzeba było przewinąć przez wykres, żeby dojść do
+       liczb. Na telefonie te trzy panele dzielą jedno miejsce i przełącza
+       się je zakładkami; na desktopie stoją obok siebie jak dotąd, a pasek
+       zakładek znika. Jeden DOM, dwa układy.
+       --------------------------------------------------------------------- */
+    .result-tabs {
+        display: flex;
+        gap: 0.25rem;
+        padding: 0.25rem;
+        margin-bottom: 0.75rem;
+        background: #e7e5e4;
+        border-radius: 0.6rem;
+    }
+    .result-tab {
+        flex: 1 1 0;
+        min-height: var(--tap);
+        padding: 0.35rem 0.25rem;
+        border-radius: 0.45rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #57534e;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .result-tab.tab-on {
+        background: #ffffff;
+        color: #1c1917;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+    .result-pane { display: none; }
+    .result-pane.pane-active { display: block; }
+
+    @media (min-width: 768px) {
+        /* Własne `display: flex` wyżej ma tę samą specyficzność co klasa
+           md:hidden Tailwinda i stoi w arkuszu później, więc wygrywało —
+           pasek zakładek musi być chowany tutaj, nie klasą w markupie. */
+        .result-tabs { display: none; }
+        .result-panes {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1.5rem;
+            align-items: start;
+        }
+        .result-pane { display: block; }
+    }
+    @media (min-width: 1280px) {
+        .result-panes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    /* Panel nastawu na desktopie: po przeniesieniu wykresu do karty wyniku
+       stoi sam w całej szerokości, więc suwaki układamy w dwie kolumny
+       zamiast rozciągać je na 1200 px. Selektor dorównuje specyficznością
+       klasie space-y-* Tailwinda, inaczej jej marginesy dodałyby się do gap. */
+    @media (min-width: 768px) {
+        .controls-panel {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem 1.5rem;
+            align-items: start;
+        }
+        .controls-panel > :not([hidden]) ~ :not([hidden]) { margin-top: 0; }
+        .controls-panel .controls-title,
+        .controls-panel .readout-box { grid-column: 1 / -1; }
+    }
 </style>
 </head>
 <body class="overflow-hidden flex flex-col">
@@ -300,34 +369,40 @@
             <h2 class="text-2xl mb-1 text-stone-800"><i class="fas fa-microscope mr-2 text-amber-700"></i>Laboratorium Ekstrakcji</h2>
             <p class="text-stone-600 text-sm mb-6">Model kinetyczny: czas kontaktu nie jest suwakiem — wynika z oporu złoża. Drobniej zmielisz, wolniej poleci woda, dłużej się ekstrahuje. Celuj w Golden Cup: <strong>EY 18–22%</strong>, <strong>TDS 1,15–1,35%</strong>.</p>
 
-            <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                <!-- Panel nastawu (na telefonie przenoszony do szuflady, Etap M3) -->
-                <div class="controls-panel space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="lab-controls"></div>
+            <!-- Panel nastawu (na telefonie przenoszony do szuflady, Etap M3) -->
+            <div class="controls-panel space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="lab-controls"></div>
 
-                <!-- Wykres -->
-                <div class="bg-stone-900 rounded-lg p-4 border border-stone-800">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="font-bold text-stone-300 text-sm"><i class="fas fa-chart-scatter mr-1"></i> Brewing Control Chart</h3>
-                        <button onclick="Lab.clearHistory()" class="text-xs text-stone-500 hover:text-stone-300 px-2 py-2 -mr-2"><i class="fas fa-eraser mr-1"></i>wyczyść historię</button>
+            <!-- Karta wyniku (Etap M5): na telefonie trzy zakładki, na desktopie
+                 te same trzy panele obok siebie. Jeden DOM, dwa układy. -->
+            <div class="mt-6 md:mt-8" id="lab-result-card">
+                <div id="lab-tabs" class="result-tabs md:hidden" role="tablist"></div>
+                <div class="result-panes">
+                    <div class="result-pane pane-active" id="lab-pane-wynik">
+                        <div class="bg-stone-900 text-stone-200 p-4 md:p-6 rounded-lg border border-stone-800 h-full">
+                            <h3 class="pane-title font-bold border-b border-stone-700 pb-2 mb-4 text-stone-300 text-sm uppercase tracking-wider">Odczyt analityczny</h3>
+                            <div id="lab-idle" class="py-10 flex flex-col justify-center items-center text-stone-600">
+                                <i class="fas fa-tint text-4xl mb-3"></i><p>Oczekuje na próbkę...</p>
+                            </div>
+                            <div id="lab-metrics" class="hidden grid grid-cols-2 gap-3"></div>
+                        </div>
                     </div>
-                    <div id="chart-lab"></div>
-                    <p class="text-[11px] text-stone-500 mt-2 leading-relaxed">Pozioma kreska przy punkcie to <strong class="text-stone-400">rozrzut ekstrakcji (σ)</strong> — jak bardzo różne cząstki w tym samym złożu wyekstrahowały się nierówno. Duże σ = jednocześnie kwaśno i ściągająco.</p>
-                </div>
-            </div>
-
-            <!-- Wyniki -->
-            <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-stone-900 text-stone-200 p-4 md:p-6 rounded-lg border border-stone-800">
-                    <h3 class="font-bold border-b border-stone-700 pb-2 mb-4 text-stone-300 text-sm uppercase tracking-wider">Odczyt analityczny</h3>
-                    <div id="lab-idle" class="py-10 flex flex-col justify-center items-center text-stone-600">
-                        <i class="fas fa-tint text-4xl mb-3"></i><p>Oczekuje na próbkę...</p>
+                    <div class="result-pane" id="lab-pane-sensoryka">
+                        <div class="bg-white p-4 md:p-6 rounded-lg border border-stone-200 shadow-sm h-full">
+                            <h3 class="pane-title font-bold border-b pb-2 mb-4 text-stone-700 text-sm uppercase tracking-wider">Karta sensoryczna (skala WBrC 0–9)</h3>
+                            <div id="lab-sensory" class="space-y-2 opacity-30"></div>
+                            <div id="lab-verdict" class="mt-4 text-sm italic text-stone-600 border-l-4 border-stone-300 pl-3 py-1"></div>
+                        </div>
                     </div>
-                    <div id="lab-metrics" class="hidden grid grid-cols-2 gap-3"></div>
-                </div>
-                <div class="bg-white p-4 md:p-6 rounded-lg border border-stone-200 shadow-sm">
-                    <h3 class="font-bold border-b pb-2 mb-4 text-stone-700 text-sm uppercase tracking-wider">Karta sensoryczna (skala WBrC 0–9)</h3>
-                    <div id="lab-sensory" class="space-y-2 opacity-30"></div>
-                    <div id="lab-verdict" class="mt-4 text-sm italic text-stone-600 border-l-4 border-stone-300 pl-3 py-1"></div>
+                    <div class="result-pane" id="lab-pane-wykres">
+                        <div class="bg-stone-900 rounded-lg p-4 border border-stone-800 h-full">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="pane-title font-bold text-stone-300 text-sm"><i class="fas fa-chart-scatter mr-1"></i> Brewing Control Chart</h3>
+                                <button onclick="Lab.clearHistory()" class="text-xs text-stone-500 hover:text-stone-300 px-2 py-2 -mr-2"><i class="fas fa-eraser mr-1"></i>wyczyść historię</button>
+                            </div>
+                            <div id="chart-lab"></div>
+                            <p class="text-[11px] text-stone-500 mt-2 leading-relaxed">Pozioma kreska przy punkcie to <strong class="text-stone-400">rozrzut ekstrakcji (σ)</strong> — jak bardzo różne cząstki w tym samym złożu wyekstrahowały się nierówno. Duże σ = jednocześnie kwaśno i ściągająco.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -357,29 +432,40 @@
             </div>
             <i class="fas fa-award absolute -right-10 -top-10 text-[200px] text-white opacity-5 rotate-12"></i>
         </div>
-        <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200 grid grid-cols-1 xl:grid-cols-2 gap-8">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200">
             <div class="controls-panel space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="comp-controls"></div>
-            <div class="bg-stone-900 rounded-lg p-4 border border-stone-800">
-                <h3 class="font-bold text-stone-300 text-sm mb-2">Brewing Control Chart</h3>
-                <div id="chart-comp"></div>
-            </div>
         </div>
-        <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-                <div id="comp-idle" class="text-center text-stone-400 py-10"><i class="fas fa-clipboard-list text-5xl mb-4"></i><p>Sędziowie czekają na Twój napar...</p></div>
-                <div id="comp-result" class="hidden text-center">
-                    <div id="comp-icon" class="text-6xl mb-4"></div>
-                    <h3 id="comp-title" class="text-2xl font-bold mb-2"></h3>
-                    <p id="comp-desc" class="text-stone-600 mb-4 text-sm"></p>
-                    <div class="inline-block bg-stone-100 px-6 py-3 rounded-lg">
-                        <span class="block text-xs uppercase text-stone-500 tracking-wider">Wynik łączny</span>
-                        <span id="comp-score" class="text-4xl font-bold mono text-stone-800"></span>
+
+        <!-- Karta wyniku (Etap M5) -->
+        <div id="comp-result-card">
+            <div id="comp-tabs" class="result-tabs md:hidden" role="tablist"></div>
+            <div class="result-panes">
+                <div class="result-pane pane-active" id="comp-pane-wynik">
+                    <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200 h-full">
+                        <div id="comp-idle" class="text-center text-stone-400 py-10"><i class="fas fa-clipboard-list text-5xl mb-4"></i><p>Sędziowie czekają na Twój napar...</p></div>
+                        <div id="comp-result" class="hidden text-center">
+                            <div id="comp-icon" class="text-6xl mb-4"></div>
+                            <h3 id="comp-title" class="text-2xl font-bold mb-2"></h3>
+                            <p id="comp-desc" class="text-stone-600 mb-4 text-sm"></p>
+                            <div class="inline-block bg-stone-100 px-6 py-3 rounded-lg">
+                                <span class="block text-xs uppercase text-stone-500 tracking-wider">Wynik łączny</span>
+                                <span id="comp-score" class="text-4xl font-bold mono text-stone-800"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div>
-                <h3 class="font-bold border-b pb-2 mb-4 text-stone-700 text-sm uppercase tracking-wider">Karta sędziowska</h3>
-                <div id="comp-sensory" class="space-y-2 opacity-30"></div>
+                <div class="result-pane" id="comp-pane-sensoryka">
+                    <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200 h-full">
+                        <h3 class="pane-title font-bold border-b pb-2 mb-4 text-stone-700 text-sm uppercase tracking-wider">Karta sędziowska</h3>
+                        <div id="comp-sensory" class="space-y-2 opacity-30"></div>
+                    </div>
+                </div>
+                <div class="result-pane" id="comp-pane-wykres">
+                    <div class="bg-stone-900 rounded-lg p-4 border border-stone-800 h-full">
+                        <h3 class="pane-title font-bold text-stone-300 text-sm mb-2">Brewing Control Chart</h3>
+                        <div id="chart-comp"></div>
+                    </div>
+                </div>
             </div>
         </div>
         <!-- Dok akcji: start prezentacji (Etap M2). Wypełniany przez Konkursy.buildControls(). -->

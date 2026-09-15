@@ -272,3 +272,60 @@ robione w dowolnym momencie równolegle.
 3. **Kolejność wdrażania.** Plan zakłada Etapy 0→2 najpierw (czysty porządek),
    potem 3+ (nowe mechaniki). Można to złamać, jeśli wolisz zobaczyć nową
    mechanikę szybciej kosztem tymczasowego bałaganu w kodzie.
+
+---
+
+# CZĘŚĆ C — Przebudowa mobilna (etapy M0–M8)
+
+Osobna oś od Części B: tamta dokładała mechaniki, ta zmienia formę wizualną.
+Punkt wyjścia: interfejs był zaprojektowany pod desktop i na telefonie wymagał
+przewijania, żeby sięgnąć po akcje powtarzane w każdej iteracji rozgrywki.
+
+Diagnoza na ekranie 375×667 przed zmianami:
+
+| Objaw | Miara |
+|---|---|
+| Nagłówek z pięcioma kafelkami statystyk i nawigacją w dwóch rzędach | 249 px, czyli 37% ekranu |
+| Przycisk « Parz ręcznie » na końcu panelu nastawu | 319 px przewinięcia, żeby go dosięgnąć |
+| Przycisk obsługi klienta i parzenia znikały przy przewinięciu treści | poza ekranem na dole obu widoków |
+| Suwak przemiału 350–1200 µm krokiem 10 µm | 1 px ekranu ≈ 3 µm, nietrafialne palcem |
+
+## Zasada prowadząca
+
+Mobile-first: jedna kolumna jest kanonem, desktop to ten sam kod z szerszym
+układem. Nie utrzymujemy dwóch równoległych układów — każda zmiana musi być
+sprawdzona na 360×640 ORAZ na desktopie.
+
+## Etapy
+
+| Etap | Zakres | Stan |
+|---|---|---|
+| **M0** | Fundament: `dvh`, `viewport-fit=cover`, safe-area, zmienna `--tap` | zrobione |
+| **M1** | Powłoka aplikacji: chudy nagłówek + dolny pasek zakładek | zrobione |
+| **M2** | Dok akcji przyklejony do dołu w trzech widokach | zrobione |
+| **M3** | Szuflada nastawu + pasek podsumowania w doku | zrobione |
+| **M4** | Kontrolery dotykowe: stepper, presety, throttle rAF | zrobione |
+| **M5** | Karta wyniku z zakładkami, auto-otwarcie po parzeniu | zrobione |
+| **M6** | Mini-gra pełnoekranowa bez przewijania, canvas skalowany do viewportu | do zrobienia |
+| **M7** | Sklep na dotyk (tap zamiast hover), Kawiarnia z zwijanym logiem | do zrobienia |
+| **M8** | Przegląd typografii i kontrastu, testy na 360×640 i 390×844 | do zrobienia |
+
+## Decyzje, które warto znać przed dalszymi zmianami
+
+- **Dok akcji** musi zostać poza przewijaną treścią. Przeniesienie przycisków
+  parzenia z powrotem do panelu nastawu cofa cały sens etapu M2.
+- **Szuflada** przenosi panel suwaków w DOM, nie duplikuje go — dwa komplety
+  suwaków o tych samych identyfikatorach rozjechałyby `refreshReadouts()`.
+- **`bump` musi być wielokrotnością `step`** w tabeli `SLIDERS`, bo `setParam()`
+  przyciąga wynik do kroku suwaka.
+- **Zakładki wyniku** istnieją tylko na telefonie; na desktopie te same panele
+  stoją obok siebie w siatce. Jeden DOM, dwa układy przez CSS.
+
+## Weryfikacja
+
+W repo nie ma testów, ale zmiany układu były sprawdzane skryptem Playwright
+na czterech wiewportach (360×640, 375×667, 390×844, 1280×900): pozycje akcji
+na obu krańcach przewijania, brak przewijania poziomego, brak błędów JS,
+cele dotykowe i przejście pełnej ścieżki rozgrywki. Skrypty są jednorazowe
+(katalog tymczasowy), nie wchodzą do repo — Tailwind trzeba do nich zbudować
+lokalnie, bo w grze jest ładowany z CDN.

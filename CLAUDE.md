@@ -35,8 +35,9 @@ Historycznie `index.html` miał własną, ręcznie wklejoną kopię silnika — 
 nie ma**, silnik jest ładowany przez `<script src="engine.js">`. Jeśli natkniesz
 się na dokumentację mówiącą o dwóch kopiach do synchronizowania, jest nieaktualna.
 
-Zobacz `DESIGN.md` po pełną wizję gry (Część A) i historię etapów wdrożenia
-(Część B).
+Zobacz `DESIGN.md` po pełną wizję gry (Część A), historię etapów wdrożenia
+mechanik (Część B) i plan przebudowy mobilnej M0–M8 wraz ze stanem realizacji
+(Część C).
 
 ## Architektura silnika (`BrewEngine`, IIFE, zero zależności od DOM)
 
@@ -104,10 +105,10 @@ szuflada) celowo NIE jest częścią `PlayerProfile`.
   + mini-gra, pełny odczyt EY/TDS/sigma/czasu), **Konkurs** (wyłącznie parzenie
   ręczne, drabinka szczebli, wymaga 50 pkt reputacji z Kawiarni).
 
-### Układ mobilny (etapy M0–M3)
+### Układ mobilny (etapy M0–M5)
 
 Gra jest projektowana mobile-first; desktop to ten sam kod z szerszym układem.
-Trzy elementy niosą tę konstrukcję i warto ich nie rozmontować przy edycjach:
+Pięć elementów niesie tę konstrukcję i warto ich nie rozmontować przy edycjach:
 
 - **Powłoka aplikacji** — `body` to kolumna flex: chudy nagłówek, przewijany
   `<main>`, dolny pasek zakładek `#tabbar`. Wysokości liczone w `dvh`
@@ -127,9 +128,40 @@ Trzy elementy niosą tę konstrukcję i warto ich nie rozmontować przy edycjach
   Dwa komplety suwaków o tych samych identyfikatorach rozjechałyby
   `refreshReadouts()`, które adresuje je po `id`. Miejsce powrotu trzymane
   przez kotwicę (`nextSibling`).
+- **Kontrolery nastawu** (`SLIDERS` w `ui-shared.js`) — każdy parametr ma
+  stepper minus/plus i, gdzie ma to sens, presety. `step` to rozdzielczość
+  suwaka, `bump` to skok jednego tapnięcia. **`bump` MUSI być wielokrotnością
+  `step`**, bo `setParam()` przyciąga wynik do kroku — przy step 10 i bump 25
+  tapnięcie przesuwało nastaw raz o 20, raz o 30 µm. `setParam()` jest jedynym
+  wejściem dla suwaka, steppera i presetów (przycina do zakresu, przyciąga do
+  kroku, odświeża odczyt).
+- **Karta wyniku** (`buildResultTabs`/`showResultPane`) — odczyt, karta
+  sensoryczna i wykres to trzy panele o wspólnych kluczach (`wynik`,
+  `sensoryka`, `wykres`) w obu trybach; różnią się wyłącznie etykiety.
+  Na telefonie dzielą jedno miejsce i przełącza się je zakładkami, na
+  desktopie stoją obok siebie w siatce. Po zakończeniu parzenia
+  `startBrewing()` sam przełącza na panel `wynik` i podciąga kartę pod górną
+  krawędź. Wykres ma stały `viewBox`, więc renderowanie go w ukrytej zakładce
+  jest bezpieczne.
 
 Warstwy nakładania: `#tabbar` z-30, szuflada z-40, modal z-50, mini-gra z-60.
 Escape zamyka to, co na wierzchu.
+
+### Pułapka: własny CSS kontra klasy Tailwinda
+
+Blok `<style>` w `index.html` stoi w arkuszu PO Tailwindzie, więc przy równej
+specyficzności wygrywa. To już dwa razy dało cichą regresję:
+
+- `.result-tabs { display: flex }` nadpisywało klasę `md:hidden` — pasek
+  zakładek pokazywał się na desktopie. Widoczność takich elementów chowaj
+  w swojej własnej regule `@media`, nie klasą w markupie.
+- własny `gap` NIE zastępuje klasy `space-y-*`, tylko się do niej dodaje,
+  bo selektor Tailwinda `.space-y-5 > :not([hidden]) ~ :not([hidden])` jest
+  bardziej specyficzny niż `> * + *`. Żeby go nadpisać, użyj tego samego
+  kształtu selektora.
+
+Po każdej zmianie w układzie sprawdź OBA warianty — regresja pokazuje się
+tylko na jednym z nich.
 
 ## Język
 

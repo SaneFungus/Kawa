@@ -22,6 +22,7 @@ const Lab = (function () {
             '</div>' +
             '<div id="recipe-list" class="space-y-1"></div>';
         buildDock();
+        buildResultTabs(mode, { wynik: 'Odczyt', sensoryka: 'Sensoryka', wykres: 'Wykres' });
         refreshReadouts(mode);
         renderRecipeList();
     }

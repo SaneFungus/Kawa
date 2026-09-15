@@ -136,6 +136,36 @@ function buildControlsSkeleton(mode) {
     return html;
 }
 
+// ---------- Karta wyniku z zakładkami (Etap M5) ----------
+// Zakładki istnieją tylko na telefonie (pasek ma klasę md:hidden), ale ich
+// stan trzymamy zawsze — na desktopie wszystkie panele i tak są widoczne,
+// więc showResultPane() jest tam nieszkodliwe. Klucze paneli są wspólne dla
+// obu trybów, różnią się wyłącznie etykiety.
+const RESULT_PANES = ['wynik', 'sensoryka', 'wykres'];
+
+function buildResultTabs(mode, labels) {
+    const host = document.getElementById(mode + '-tabs');
+    if (!host) return;
+    host.innerHTML = RESULT_PANES.map(function (key, i) {
+        return '<button type="button" role="tab" id="' + mode + '-tab-' + key + '" ' +
+            'aria-controls="' + mode + '-pane-' + key + '" aria-selected="' + (i === 0) + '" ' +
+            'onclick="showResultPane(\'' + mode + '\',\'' + key + '\')" ' +
+            'class="result-tab' + (i === 0 ? ' tab-on' : '') + '">' + labels[key] + '</button>';
+    }).join('');
+}
+
+function showResultPane(mode, key) {
+    RESULT_PANES.forEach(function (k) {
+        const pane = document.getElementById(mode + '-pane-' + k);
+        const tab = document.getElementById(mode + '-tab-' + k);
+        if (pane) pane.classList.toggle('pane-active', k === key);
+        if (tab) {
+            tab.classList.toggle('tab-on', k === key);
+            tab.setAttribute('aria-selected', k === key ? 'true' : 'false');
+        }
+    });
+}
+
 // ---------- Dok akcji (Etap M2) ----------
 // Główna, powtarzalna akcja trybu (parzenie, prezentacja, obsługa klienta)
 // mieszka POZA przewijaną treścią — w doku przyklejonym do dolnej krawędzi
@@ -389,6 +419,13 @@ function startBrewing(mode, pour) {
             else Konkursy.showResult(result);
             drawChart(mode, result, params[mode].water / params[mode].dose);
             refreshReadouts(mode);
+            // Etap M5: po zaparzeniu pokazujemy wynik, a nie zostawiamy gracza
+            // na zakładce, którą akurat oglądał. Karta jest podciągana pod
+            // górną krawędź, bo na telefonie stoi niżej niż dok, z którego
+            // właśnie padło kliknięcie.
+            showResultPane(mode, 'wynik');
+            const card = document.getElementById(mode + '-result-card');
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }, 40);
 }
