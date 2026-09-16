@@ -308,7 +308,7 @@ sprawdzona na 360×640 ORAZ na desktopie.
 | **M5** | Karta wyniku z zakładkami, auto-otwarcie po parzeniu | zrobione |
 | **M6** | Mini-gra pełnoekranowa bez przewijania, canvas skalowany do viewportu | zrobione |
 | **M7** | Sklep na dotyk (kategorie w zakładkach, zwijane szczegóły), Kawiarnia | zrobione |
-| **M8** | Przegląd typografii i kontrastu, testy na 360×640 i 390×844 | do zrobienia |
+| **M8** | Przegląd typografii i kontrastu | zrobione |
 
 ## Decyzje, które warto znać przed dalszymi zmianami
 
@@ -320,6 +320,21 @@ sprawdzona na 360×640 ORAZ na desktopie.
   przyciąga wynik do kroku suwaka.
 - **Zakładki wyniku** istnieją tylko na telefonie; na desktopie te same panele
   stoją obok siebie w siatce. Jeden DOM, dwa układy przez CSS.
+
+## Wynik po M8
+
+Audyt renderowanego tekstu (kontrast wg WCAG 2.1, rozmiary po skali):
+
+| | przed M8 | po M8 |
+|---|---|---|
+| Teksty poniżej progu AA | 16 | 0 |
+| Najmniejszy tekst poza wykresem | 10 px | 11 px |
+| Etykiety wykresu na telefonie | 5,0–5,5 px | 9,5–10,5 px |
+
+Świadome wyjątki od progu 12 px: podpisy dolnych zakładek (11 px, niosą je
+ikony), gęste dane mono w pasku nastawu i na kartach metryk (11 px),
+etykiety wykresu (9,5 px na najwęższym ekranie — wykres jest z natury gęsty,
+a jego odczyt dubluje karta « Odczyt »).
 
 ## Weryfikacja
 

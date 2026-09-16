@@ -36,7 +36,7 @@ const Lab = (function () {
             setupSummaryHtml(mode) +
             progressBarHtml(mode) +
             '<div class="flex gap-2">' +
-            '<button id="btn-pour-lab" onclick="launchPour(\'lab\')" class="flex-[2] min-w-0 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-3 rounded-lg shadow active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed">' +
+            '<button id="btn-pour-lab" onclick="launchPour(\'lab\')" class="flex-[2] min-w-0 bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 px-3 rounded-lg shadow active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed">' +
             '<i class="fas fa-hand-holding-droplet mr-2"></i>Parz ręcznie<span class="hidden sm:inline"> (technika)</span></button>' +
             '<button id="btn-brew-lab" onclick="startBrewing(\'lab\')" class="flex-1 min-w-0 bg-stone-800 hover:bg-black text-white font-semibold py-3 px-3 rounded-lg shadow text-sm active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed">' +
             '<i class="fas fa-bolt mr-1"></i>Auto</button>' +
@@ -63,7 +63,7 @@ const Lab = (function () {
         const recipes = PlayerProfile.getRecipes();
         const activeId = PlayerProfile.getActiveRecipe() ? PlayerProfile.getActiveRecipe().id : null;
         if (recipes.length === 0) {
-            host.innerHTML = '<p class="text-xs text-stone-400 italic pt-1">Brak zapisanych receptur — Kawiarnia parzy na domyślnym nastawie.</p>';
+            host.innerHTML = '<p class="text-xs text-stone-500 italic pt-1">Brak zapisanych receptur — Kawiarnia parzy na domyślnym nastawie.</p>';
             return;
         }
         host.innerHTML = recipes.slice().reverse().map(r => {

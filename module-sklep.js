@@ -84,7 +84,7 @@ const Sklep = (function () {
             const can = PlayerProfile.getMoney() >= item.price;
             const missing = item.price - PlayerProfile.getMoney();
             btn = '<button onclick="Sklep.buy(\'' + cat + '\',\'' + item.id + '\')" ' + (can ? '' : 'disabled') +
-                  ' class="mt-auto ' + (can ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed') +
+                  ' class="mt-auto ' + (can ? 'bg-amber-700 hover:bg-amber-800 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed') +
                   ' font-bold py-2 rounded text-sm">' + item.price + ' PLN</button>' +
                   (can ? '' : shortageHtml(missing));
         }
@@ -111,7 +111,7 @@ const Sklep = (function () {
         const can = PlayerProfile.getMoney() >= item.price;
         const missing = item.price - PlayerProfile.getMoney();
         const buyBtn = '<button onclick="Sklep.buyCoffee(\'' + item.id + '\')" ' + (can ? '' : 'disabled') +
-            ' class="flex-1 ' + (can ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed') +
+            ' class="flex-1 ' + (can ? 'bg-amber-700 hover:bg-amber-800 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed') +
             ' font-bold py-2 rounded text-sm">+' + item.bagSize + 'g · ' + item.price + ' PLN</button>';
 
         // Zapas zostaje widoczny zawsze (nie chowa się w szczegółach) — to od

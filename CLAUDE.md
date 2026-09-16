@@ -105,7 +105,7 @@ szuflada) celowo NIE jest częścią `PlayerProfile`.
   + mini-gra, pełny odczyt EY/TDS/sigma/czasu), **Konkurs** (wyłącznie parzenie
   ręczne, drabinka szczebli, wymaga 50 pkt reputacji z Kawiarni).
 
-### Układ mobilny (etapy M0–M7)
+### Układ mobilny (etapy M0–M8)
 
 Gra jest projektowana mobile-first; desktop to ten sam kod z szerszym układem.
 Siedem elementów niesie tę konstrukcję i warto ich nie rozmontować przy edycjach:
@@ -185,6 +185,23 @@ specyficzności wygrywa. To już dwa razy dało cichą regresję:
 
 Po każdej zmianie w układzie sprawdź OBA warianty — regresja pokazuje się
 tylko na jednym z nich.
+
+### Pułapka: rozmiary czcionek w `chart.js` są w jednostkach viewBoxa
+
+Wykres ma `viewBox` 520 jednostek i renderuje się na 260–317 px CSS, czyli
+w skali 0,50–0,61. `font-size="11"` dawał na telefonie **5,5 px na ekranie**.
+Wartości 19/21 w kodzie dają 9,5–12,8 px i są poprawne — nie zmniejszaj ich
+dlatego, że w kodzie wyglądają na duże. Po każdej zmianie rozmiaru czcionki
+sprawdź też `PAD` i odstępy etykiet od osi: skalują się razem z czcionką,
+a przy poprzedniej wartości podpis osi TDS wchodził na liczby.
+
+### Kontrast: dwa tła nie przechodzą AA z białym tekstem
+
+`bg-amber-600` daje 3,19:1, a `bg-emerald-600` 3,77:1 — oba poniżej progu 4,5.
+Przyciski z białym tekstem używają `amber-700` (5,02:1) i `emerald-700`
+(5,48:1). Analogicznie na ciemnych kartach `text-stone-500` daje 3,65:1 —
+tam idzie `stone-400` (6,93:1), a na jasnym tle odwrotnie: `stone-400` ma
+2,41:1, więc minimum to `stone-500`.
 
 ## Język
 

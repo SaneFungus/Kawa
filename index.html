@@ -95,7 +95,10 @@
         transition: color 0.15s, border-color 0.15s;
     }
     .tab-btn i { font-size: 1.05rem; }
-    .tab-btn .tab-label { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.01em; }
+        /* 11 px to świadomy wyjątek od progu 12 px: podpis zakładki nigdy nie
+       stoi sam — niesie go ikona nad nim i pozycja w pasku. Niżej nie
+       schodzimy. */
+    .tab-btn .tab-label { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.01em; }
     .tab-btn.tab-active { color: #fbbf24; border-top-color: #f59e0b; }
     .tab-btn.tab-locked { opacity: 0.45; }
 
@@ -351,7 +354,7 @@
     <div class="max-w-6xl mx-auto px-3 md:px-4 py-2 md:py-3 flex flex-row md:justify-between items-center gap-2 md:gap-3">
         <div class="flex items-center gap-2 md:gap-3 shrink-0">
             <i class="fas fa-mug-hot text-xl md:text-2xl text-amber-500"></i>
-            <h1 class="text-base md:text-xl font-bold tracking-wide whitespace-nowrap">WBrC<span class="hidden sm:inline"> Simulator</span> <span class="text-[10px] md:text-xs text-amber-500/70 align-top">v2</span></h1>
+            <h1 class="text-base md:text-xl font-bold tracking-wide whitespace-nowrap">WBrC<span class="hidden sm:inline"> Simulator</span> <span class="text-[11px] md:text-xs text-amber-400 align-top">v2</span></h1>
         </div>
         <div class="flex flex-1 md:flex-none flex-wrap justify-end md:justify-center items-center gap-1.5 md:gap-3 lg:gap-6 font-semibold">
             <div class="stat-tile">
@@ -492,7 +495,7 @@
         </div>
         <div class="bg-gradient-to-r from-stone-800 to-stone-900 text-white p-5 md:p-8 rounded-xl shadow-lg relative overflow-hidden">
             <div class="relative z-10">
-                <span id="comp-hero-tier" class="bg-amber-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider"></span>
+                <span id="comp-hero-tier" class="bg-amber-700 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider"></span>
                 <h2 id="comp-hero-name" class="text-2xl md:text-3xl mt-2 mb-1 serif text-amber-400"></h2>
                 <p id="comp-hero-place" class="text-stone-400 text-xs mb-3"></p>
                 <p id="comp-hero-desc" class="mb-3 text-stone-300 max-w-2xl text-sm"></p>
@@ -622,7 +625,7 @@
       </div>
 
       <div class="shrink-0 flex gap-2">
-        <button onclick="PourMinigame.finish()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-lg text-sm">Zakończ parzenie</button>
+        <button onclick="PourMinigame.finish()" class="flex-1 bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 rounded-lg text-sm">Zakończ parzenie</button>
         <button onclick="PourMinigame.abort()" class="px-5 bg-stone-800 hover:bg-stone-700 text-stone-300 py-3 rounded-lg text-sm">Przerwij</button>
       </div>
     </div>
@@ -639,7 +642,7 @@
         </div>
         <div id="pour-stats" class="bg-stone-900 rounded-lg p-4 border border-stone-800"></div>
       </div>
-      <button onclick="PourMinigame.confirm()" class="shrink-0 w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg">Analizuj napar</button>
+      <button onclick="PourMinigame.confirm()" class="shrink-0 w-full mt-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-lg">Analizuj napar</button>
     </div>
 
   </div>

@@ -62,9 +62,9 @@ function metricCard(label, value, ok, sub) {
     const mark = ok === null ? '' :
         ok ? '<i class="fas fa-circle-check mr-1" aria-hidden="true"></i>' : '<i class="fas fa-circle-xmark mr-1" aria-hidden="true"></i>';
     return '<div class="bg-black/40 p-3 rounded border border-stone-700">' +
-        '<span class="block text-[10px] text-stone-400 uppercase tracking-wider">' + label + '</span>' +
+        '<span class="block text-[11px] text-stone-300 uppercase tracking-wider">' + label + '</span>' +
         '<span class="text-2xl font-bold mono ' + color + '">' + mark + value + '</span>' +
-        '<div class="text-[10px] text-stone-500 mt-0.5">' + (sub || '') + '</div></div>';
+        '<div class="text-[11px] text-stone-400 mt-0.5">' + (sub || '') + '</div></div>';
 }
 
 // ---------- Karta sensoryczna (Lab + Konkursy) ----------
@@ -243,7 +243,7 @@ function setupSummaryHtml(mode) {
         '<i class="fas fa-sliders text-stone-500 shrink-0" aria-hidden="true"></i>' +
         '<span class="flex-1 min-w-0 mono text-[11px] leading-snug">' +
         '<span id="' + mode + '-sum-params" class="block truncate text-stone-800 font-bold"></span>' +
-        '<span id="' + mode + '-sum-derived" class="block truncate text-stone-500"></span>' +
+        '<span id="' + mode + '-sum-derived" class="block truncate text-stone-600"></span>' +
         '</span>' +
         '<span class="text-xs font-semibold text-amber-700 shrink-0">Zmień</span></button>';
 }

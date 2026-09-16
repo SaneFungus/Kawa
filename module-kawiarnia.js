@@ -187,7 +187,7 @@ const Kawiarnia = (function () {
                 '<p class="text-stone-600 text-xs mb-2">' + next.desc + '</p>' +
                 '<span class="text-stone-600">Czynsz tam: ' + next.rent + ' PLN · cena filiżanki ' + next.cupPrice + ' PLN · limit ' + next.dailyCap + ' klientów/dzień</span>' +
                 '<button onclick="Kawiarnia.move(\'' + next.id + '\')" ' + (can ? '' : 'disabled title="Brakuje ' + missing + ' PLN"') +
-                ' class="w-full mt-3 font-semibold py-2 rounded text-sm ' + (can ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed') + '">' +
+                ' class="w-full mt-3 font-semibold py-2 rounded text-sm ' + (can ? 'bg-amber-700 hover:bg-amber-800 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed') + '">' +
                 'Przenieś się (' + next.moveCost + ' PLN)</button>' +
                 '</div>';
         }
@@ -199,7 +199,7 @@ const Kawiarnia = (function () {
                 '<strong class="text-stone-800 block mb-1"><i class="fas fa-user-tie mr-1"></i>Zatrudnij barmana</strong>' +
                 '<p class="text-stone-600 text-xs mb-2">Automatycznie obsługuje drugie stanowisko, bez klikania. Koszt: ' + BARMAN_HIRE_COST + ' PLN jednorazowo + ' + BARMAN_WAGE + ' PLN/dzień.</p>' +
                 '<button onclick="Kawiarnia.hireBarman()" ' + (canHire ? '' : 'disabled title="Brakuje ' + missingHire + ' PLN"') +
-                ' class="w-full font-semibold py-2 rounded text-sm ' + (canHire ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed') + '">' +
+                ' class="w-full font-semibold py-2 rounded text-sm ' + (canHire ? 'bg-emerald-700 hover:bg-emerald-800 text-white' : 'bg-stone-200 text-stone-400 cursor-not-allowed') + '">' +
                 'Zatrudnij (' + BARMAN_HIRE_COST + ' PLN)</button>' +
                 '</div>';
         }

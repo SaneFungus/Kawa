@@ -6,8 +6,16 @@ const BrewingControlChart = (function () {
 
     const EY_MIN = 14, EY_MAX = 26;
     const TDS_MIN = 0.80, TDS_MAX = 1.80;
+    // Uwaga na rozmiary czcionek w tym pliku: są podane W JEDNOSTKACH viewBoxa,
+    // nie w pikselach. SVG renderuje się na 260-317 px CSS, czyli w skali
+    // 0,50-0,61, więc font-size="11" dawał na telefonie 5,5 px na ekranie.
+    // Wartości 19/21 dają 9,5-12,8 px. Nie zmniejszaj ich, sugerując się tym,
+    // że wyglądają na duże w kodzie.
     const W = 520, H = 400;
-    const PAD = { l: 52, r: 16, t: 18, b: 44 };
+    // Marginesy poszerzone wraz z czcionkami (Etap M8): przy 21 jednostkach
+    // liczby osi TDS nie mieściły się w 52 jednostkach i podpis « TDS [%] »
+    // wchodził na nie.
+    const PAD = { l: 78, r: 16, t: 22, b: 66 };
     const PW = W - PAD.l - PAD.r;
     const PH = H - PAD.t - PAD.b;
 
@@ -20,6 +28,12 @@ const BrewingControlChart = (function () {
         const pts = [];
         for (const ey of [EY_MIN, EY_MAX]) pts.push([ey, ey / denom]);
         return pts;
+    }
+
+    function zoneLabel(cx, cy, fill, l1, l2) {
+        return '<text x="' + cx + '" y="' + cy + '" fill="' + fill + '" font-size="19" text-anchor="middle" opacity="0.95">' +
+            '<tspan x="' + cx + '">' + l1 + '</tspan>' +
+            '<tspan x="' + cx + '" dy="20">' + l2 + '</tspan></text>';
     }
 
     function render(containerId, data) {
@@ -42,7 +56,7 @@ const BrewingControlChart = (function () {
         s += '<rect x="' + x(18) + '" y="' + y(1.55) + '" width="' + (x(22) - x(18)) + '" height="' + (y(1.15) - y(1.55)) + '" fill="#22c55e" opacity="0.08" stroke="#22c55e" stroke-opacity="0.3" stroke-dasharray="3 3"/>';
         // Golden Cup
         s += '<rect x="' + x(18) + '" y="' + y(1.35) + '" width="' + (x(22) - x(18)) + '" height="' + (y(1.15) - y(1.35)) + '" fill="#22c55e" opacity="0.16" stroke="#22c55e" stroke-opacity="0.7"/>';
-        s += '<text x="' + ((x(18) + x(22)) / 2) + '" y="' + (y(1.25) + 4) + '" fill="#4ade80" font-size="11" text-anchor="middle" font-weight="700" opacity="0.9">GOLDEN CUP</text>';
+        s += '<text x="' + ((x(18) + x(22)) / 2) + '" y="' + (y(1.25) + 4) + '" fill="#4ade80" font-size="21" text-anchor="middle" font-weight="700" opacity="0.9">GOLDEN CUP</text>';
 
         // linie brew ratio
         for (const r of [12, 14, 16, 18, 20, 24]) {
@@ -51,7 +65,7 @@ const BrewingControlChart = (function () {
             s += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="#57534e" stroke-width="1" stroke-dasharray="2 4"/>';
             const ly = y(EY_MAX / (r - BrewEngine.LRR));
             if (ly > PAD.t + 8 && ly < PAD.t + PH - 4) {
-                s += '<text x="' + (PAD.l + PW - 4) + '" y="' + (ly - 3) + '" fill="#78716c" font-size="9" text-anchor="end">1:' + r + '</text>';
+                s += '<text x="' + (PAD.l + PW - 4) + '" y="' + (ly - 3) + '" fill="#a8a29e" font-size="21" text-anchor="end">1:' + r + '</text>';
             }
         }
 
@@ -64,20 +78,29 @@ const BrewingControlChart = (function () {
         // siatka i osie
         for (let ey = EY_MIN; ey <= EY_MAX; ey += 2) {
             s += '<line x1="' + x(ey) + '" y1="' + PAD.t + '" x2="' + x(ey) + '" y2="' + (PAD.t + PH) + '" stroke="#292524" stroke-width="0.5"/>';
-            s += '<text x="' + x(ey) + '" y="' + (PAD.t + PH + 16) + '" fill="#a8a29e" font-size="10" text-anchor="middle">' + ey + '</text>';
+            s += '<text x="' + x(ey) + '" y="' + (PAD.t + PH + 24) + '" fill="#a8a29e" font-size="21" text-anchor="middle">' + ey + '</text>';
         }
         for (let t = TDS_MIN; t <= TDS_MAX + 0.001; t += 0.2) {
             s += '<line x1="' + PAD.l + '" y1="' + y(t) + '" x2="' + (PAD.l + PW) + '" y2="' + y(t) + '" stroke="#292524" stroke-width="0.5"/>';
-            s += '<text x="' + (PAD.l - 8) + '" y="' + (y(t) + 3) + '" fill="#a8a29e" font-size="10" text-anchor="end">' + t.toFixed(2) + '</text>';
+            s += '<text x="' + (PAD.l - 12) + '" y="' + (y(t) + 7) + '" fill="#a8a29e" font-size="21" text-anchor="end">' + t.toFixed(2) + '</text>';
         }
-        s += '<text x="' + (PAD.l + PW / 2) + '" y="' + (H - 8) + '" fill="#d6d3d1" font-size="11" text-anchor="middle" font-weight="600">Extraction Yield [%]</text>';
-        s += '<text x="14" y="' + (PAD.t + PH / 2) + '" fill="#d6d3d1" font-size="11" text-anchor="middle" font-weight="600" transform="rotate(-90 14 ' + (PAD.t + PH / 2) + ')">TDS [%]</text>';
+        s += '<text x="' + (PAD.l + PW / 2) + '" y="' + (H - 12) + '" fill="#d6d3d1" font-size="21" text-anchor="middle" font-weight="600">Extraction Yield [%]</text>';
+        // x=20, nie 14: po powiększeniu czcionki obrócony podpis wystawał
+        // poza lewą krawędź SVG o połowę swojej wysokości.
+        s += '<text x="20" y="' + (PAD.t + PH / 2) + '" fill="#d6d3d1" font-size="21" text-anchor="middle" font-weight="600" transform="rotate(-90 20 ' + (PAD.t + PH / 2) + ')">TDS [%]</text>';
 
         // etykiety stref
-        s += '<text x="' + (x(15.9)) + '" y="' + (PAD.t + 16) + '" fill="#60a5fa" font-size="9" text-anchor="middle" opacity="0.8">NIEDOEKSTRAHOWANE</text>';
-        s += '<text x="' + (x(24.1)) + '" y="' + (PAD.t + 16) + '" fill="#f87171" font-size="9" text-anchor="middle" opacity="0.8">PRZEEKSTRAHOWANE</text>';
-        s += '<text x="' + (PAD.l + 6) + '" y="' + (PAD.t + PH - 8) + '" fill="#78716c" font-size="9">słabe</text>';
-        s += '<text x="' + (PAD.l + 6) + '" y="' + (PAD.t + 14) + '" fill="#78716c" font-size="9">mocne</text>';
+        // Etykiety stref łamane na dwie linie: w jednej nie mieszczą się
+        // w szerokości swojej strefy, odkąd czcionki SVG są podane
+        // w jednostkach viewBoxa (patrz komentarz przy font-size).
+        // Słownictwo jak w werdykcie silnika: niedoekstrakcja / nadekstrakcja.
+        // Etykiety stref w dolnej części wykresu: górna jest zajęta przez
+        // podpis « mocne » i przez etykiety linii brew ratio, które wychodzą
+        // przy prawej krawędzi tym wyżej, im ciaśniejszy ratio.
+        s += zoneLabel(x(15.9), PAD.t + PH - 64, '#60a5fa', 'NIEDO-', 'EKSTRAKCJA');
+        s += zoneLabel(x(24.1), PAD.t + PH - 64, '#f87171', 'NAD-', 'EKSTRAKCJA');
+        s += '<text x="' + (PAD.l + 6) + '" y="' + (PAD.t + PH - 10) + '" fill="#a8a29e" font-size="19">słabe</text>';
+        s += '<text x="' + (PAD.l + 6) + '" y="' + (PAD.t + 18) + '" fill="#a8a29e" font-size="19">mocne</text>';
 
         // historia
         history.forEach((h, i) => {
