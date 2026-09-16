@@ -5,9 +5,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Co to za projekt
 
 Gra przeglądarkowa — symulator parzenia kawy metodą przelewową w stylu World
-Brewers Cup (WBrC). Brak build stepu, brak menedżera pakietów, brak testów
-jednostkowych w repo. Uruchamianie = otwarcie `index.html` wprost w przeglądarce
-(Tailwind, Font Awesome i Google Fonts ładowane z CDN).
+Brewers Cup (WBrC). Brak build stepu, brak menedżera pakietów; jedyny test
+jednostkowy to `test-engine.js` (`node test-engine.js`, zero frameworka).
+Uruchamianie gry = otwarcie `index.html` wprost w przeglądarce (Tailwind,
+Font Awesome i Google Fonts ładowane z CDN).
 
 ## Struktura plików
 
@@ -30,7 +31,11 @@ Kolejność `<script>` ma znaczenie tylko tam, gdzie kod wykonuje się natychmia
 przy wczytaniu. Wywołania między modułami w reakcji na klik działają niezależnie
 od kolejności — uruchamiają się dopiero po `window.onload`.
 
-`engine.js` kończy się linią `module.exports` pod Node/testy jednostkowe.
+`engine.js` i `database.js` kończą się linią `module.exports` pod Node —
+z tego korzysta jedyny test w repo, `test-engine.js` (patrz „Weryfikacja
+zmian" niżej). Ta gałąź `module.exports` jest no-opem w przeglądarce
+(`typeof module !== 'undefined'` jest tam fałszywe), więc nie zmienia
+ładowania przez `<script src="...">`.
 Historycznie `index.html` miał własną, ręcznie wklejoną kopię silnika — **już jej
 nie ma**, silnik jest ładowany przez `<script src="engine.js">`. Jeśli natkniesz
 się na dokumentację mówiącą o dwóch kopiach do synchronizowania, jest nieaktualna.
@@ -65,10 +70,13 @@ Wejścia techniki nalewania (`agitation`, `evenness`) pochodzą z jednego z dwó
 z `eq.kettle.pourQuality` jako zastępczej wartości obu.
 
 Kalibracja odniesienia wpisana w komentarz kodu: 15 g kawy / 250 g wody / 700 µm
-mediana przemiału / 93°C / Hario V60 / Comandante C40 → EY 20,0%, TDS 1,36%,
-σ 0,83, czas kontaktu 169 s. Przy zmianie stałych fizycznych (`K0`, `DIFF_EXP`,
-`PERM_EXP`, `F_FAST`, `K_FAST`, `EA` itd.) warto sprawdzić, czy ten punkt
-odniesienia nadal wychodzi sensownie — nie ma do tego automatycznego testu.
+mediana przemiału / 93°C / Hario V60 / Comandante C40 / kawa jak Brazylia
+Fazenda 83 / woda referencyjna SCA (GH 100, KH 40 ppm) → EY 20,95%, TDS 1,43%,
+σ 0,87, czas kontaktu 165 s. Przy zmianie stałych fizycznych (`K0`, `DIFF_EXP`,
+`PERM_EXP`, `F_FAST`, `K_FAST`, `EA`, `GH_EXP`, `KH_FLAT_SPAN`,
+`CHANNEL_SIGMA_COEF` itd.) uruchom `node test-engine.js` — pilnuje właśnie
+tego punktu i albo potwierdzi, że zmiana wyszła zgodnie z zamiarem, albo
+pokaże, o ile się przesunął.
 
 ## PourMinigame (mini-gra nalewania)
 
@@ -231,10 +239,12 @@ for f in sorted(glob.glob('*.js') + glob.glob('*.html')):
 
 ## Weryfikacja zmian
 
-Nie ma testów automatycznych ani lintera. Minimum przed uznaniem zmiany
-za gotową:
+Nie ma lintera. Jest jeden test automatyczny (`test-engine.js`, czysty Node,
+zero frameworka) — pilnuje punktu kalibracyjnego `BrewEngine` opisanego wyżej.
+Minimum przed uznaniem zmiany za gotową:
 
 - `for f in *.js; do node --check "$f"; done` — składnia.
+- Przy zmianie czegokolwiek w `engine.js`: `node test-engine.js`.
 - Otwarcie `index.html` i przeklikanie ścieżki, której dotyczy zmiana.
 - Przy zmianach w układzie: sprawdzenie na wąskim ekranie (360×640) ORAZ na
   desktopie — oba układy dzielą ten sam kod i łatwo naprawić jeden kosztem

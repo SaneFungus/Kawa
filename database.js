@@ -141,3 +141,7 @@ const COMPETITIONS = [
 
 const BARMAN_HIRE_COST = 250; // jednorazowo
 const BARMAN_WAGE = 15;       // PLN/dzień, doliczane do czynszu przy "Zakończ dzień"
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { database, LOCATIONS, CATEGORY_LABELS, SENSORY_LABELS, REQ_REP_COMP, COMPETITIONS, BARMAN_HIRE_COST, BARMAN_WAGE };
+}
