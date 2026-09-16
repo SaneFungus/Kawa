@@ -2,13 +2,36 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Barista Simulator: Droga do WBrC — v2</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Playfair+Display:ital,wght@0,600;1,600&display=swap');
-    body { font-family: 'Inter', sans-serif; background-color: #F5F5F4; color: #292524; }
+
+    /* ---------------------------------------------------------------------
+       Etap M0 — fundament mobilny.
+       Jednostki i wcięcia bezpieczne na telefonie trzymamy w JEDNYM miejscu,
+       zamiast rozsypywać arbitralne wartości po klasach Tailwinda:
+       - 100dvh zamiast 100vh, bo pasek adresu przeglądarki mobilnej zmienia
+         wysokość viewportu w trakcie scrollowania (100vh przycina dół),
+       - env(safe-area-inset-*) pod notch i pasek gestów iOS,
+       - --tap: minimalny cel dotykowy (44 px wg WCAG 2.5.5 / HIG).
+       --------------------------------------------------------------------- */
+    :root {
+        --tap: 44px;
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #F5F5F4;
+        color: #292524;
+        height: 100vh;      /* fallback dla przeglądarek bez dvh */
+        height: 100dvh;
+        overscroll-behavior: none;  /* bez "gumowego" odbicia całej strony */
+    }
     h1, h2, h3, .serif { font-family: 'Playfair Display', serif; }
     .coffee-gradient { background: linear-gradient(135deg, #78350f 0%, #451a03 100%); }
     .custom-scrollbar::-webkit-scrollbar { width: 8px; }
@@ -19,134 +42,461 @@
     .sensory-bar { transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
     .bcc-dot { transition: cx 0.4s ease, cy 0.4s ease; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    .app-header { padding-top: var(--safe-top); }
+
+    /* ---------------------------------------------------------------------
+       Etap M1 — pasek statystyk.
+       Na telefonie kafelek kurczy się do "ikona + wartość" w jednej linii
+       (etykieta słowna znika, bo zajmuje drugi wiersz na każdym z pięciu
+       kafelków), a dwa drugorzędne wskaźniki — Sława i Rekord — chowają się
+       pod rozwijanym przyciskiem. Na desktopie wygląd zostaje bez zmian.
+       --------------------------------------------------------------------- */
+    .stat-tile {
+        display: flex; align-items: center;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 0.25rem;
+        line-height: 1.15;
+        gap: 0.35rem;
+        padding: 0.3rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    .stat-tile .stat-icon { font-size: 0.7rem; opacity: 0.75; }
+    .stat-tile .stat-label { display: none; }
+    .stats-secondary { display: none; }
+    body.stats-expanded .stats-secondary { display: flex; }
+
+    @media (min-width: 768px) {
+        .stat-tile {
+            flex-direction: column; gap: 0;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        .stat-tile .stat-icon { display: none; }
+        .stat-tile .stat-label { display: block; font-size: 0.75rem; color: #d6d3d1; }
+        .stats-secondary { display: flex; }
+        #btn-stats-toggle { display: none; }
+    }
+
+    /* ---------------------------------------------------------------------
+       Etap M1 — dolny pasek zakładek (strefa kciuka).
+       Jest zwykłym elementem kolumny flex (a nie position:fixed), więc nie
+       nachodzi na treść i nie wymaga sztucznego paddingu w <main>.
+       --------------------------------------------------------------------- */
+    #tabbar { padding-bottom: var(--safe-bottom); }
+    .tab-btn {
+        flex: 1 1 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 2px;
+        min-height: var(--tap);
+        padding: 0.4rem 0.25rem;
+        color: #a8a29e;
+        border-top: 2px solid transparent;
+        transition: color 0.15s, border-color 0.15s;
+    }
+    .tab-btn i { font-size: 1.05rem; }
+        /* 11 px to świadomy wyjątek od progu 12 px: podpis zakładki nigdy nie
+       stoi sam — niesie go ikona nad nim i pozycja w pasku. Niżej nie
+       schodzimy. */
+    .tab-btn .tab-label { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.01em; }
+    .tab-btn.tab-active { color: #fbbf24; border-top-color: #f59e0b; }
+    .tab-btn.tab-locked { opacity: 0.45; }
+
+    /* ---------------------------------------------------------------------
+       Etap M2 — dok akcji.
+       Główna, powtarzalna akcja widoku przykleja się do dolnej krawędzi
+       obszaru przewijania, więc jej powtórzenie nigdy nie wymaga scrollowania
+       (position:sticky liczy "bottom" względem scrollportu <main>, nie
+       względem jego paddingu). Na mobile dok jest pełnoszerokim pasem,
+       na desktopie — zaokrąglonym dokiem w kolumnie treści.
+       --------------------------------------------------------------------- */
+    .action-dock {
+        position: sticky;
+        /* Dolny padding <main> jest wyzerowany (dok sam wnosi swój oddech),
+           bo element sticky nie zejdzie niżej niż dolna krawędź swojego
+           kontenera — inaczej pod dokiem przebijałby pasek przewijanej treści. */
+        bottom: 0;
+        z-index: 20;
+        margin: 1rem -1rem 0;
+        padding: 0.6rem 1rem;
+        background: rgba(255, 255, 255, 0.93);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-top: 1px solid #e7e5e4;
+    }
+    .action-dock:empty { display: none; }
+    @media (min-width: 768px) {
+        .action-dock {
+            bottom: 1.5rem;
+            margin: 1.5rem 0;
+            border: 1px solid #e7e5e4;
+            border-radius: 0.75rem;
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+        }
+    }
+    /* Przyciski w doku zawsze spełniają minimalny cel dotykowy. */
+    .action-dock button { min-height: var(--tap); }
+
+    /* ---------------------------------------------------------------------
+       Etap M3 — szuflada nastawu.
+       Na telefonie panel suwaków nie stoi w kolumnie treści (cztery suwaki
+       plus odczyt to ponad ekran przewijania przed przyciskiem parzenia) —
+       jest wysuwany od dołu na żądanie, a w treści zostaje jednowierszowy
+       pasek podsumowania w doku. Na desktopie nic się nie zmienia: panel
+       stoi tam, gdzie stał, a szuflada i pasek podsumowania są ukryte.
+
+       Panel jest PRZENOSZONY w DOM do szuflady (openSheet/closeSheet), a nie
+       duplikowany — inaczej powstałyby dwa komplety suwaków o tych samych
+       identyfikatorach, a refreshReadouts() adresuje je właśnie po id.
+       --------------------------------------------------------------------- */
+    @media (max-width: 767px) {
+        .controls-panel { display: none; }
+        .controls-panel.in-sheet {
+            display: block;
+            background: transparent;
+            border: 0;
+            padding: 0;
+        }
+        .controls-panel.in-sheet .controls-title { display: none; }
+
+        /* Etap M4: w szufladzie odczyt (brew ratio, czas kontaktu, pył)
+           wędruje na górę i tam zostaje przypięty. To jedyna informacja
+           zwrotna o tym, co suwak właśnie zrobił — przewinięty poza ekran
+           zmuszał do skakania w górę po każdym ruchu. Kolejność zmieniamy
+           przez flex/order, więc odstępy z klasy space-y-* trzeba wyzerować,
+           żeby nie dublowały się z gap. */
+        .controls-panel.in-sheet {
+            display: flex;
+            flex-direction: column;
+        }
+        /* Odstępy zostawiamy klasie space-y-* (flex jest tu tylko po to, żeby
+           dało się użyć `order`); własny `gap` DODAWAŁBY się do nich, bo
+           selektor Tailwinda jest bardziej specyficzny niż `> * + *`.
+           Ten zapis dorównuje mu specyficznością i zacieśnia odstęp. */
+        .controls-panel.in-sheet > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
+        .controls-panel.in-sheet .readout-box {
+            order: -1;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+    }
+
+    #sheet {
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        max-height: 82dvh;
+    }
+    #sheet.sheet-open { transform: translateY(0); }
+    #sheet-backdrop {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+    }
+    #sheet-backdrop.sheet-open { opacity: 1; pointer-events: auto; }
+    #sheet-body { padding-bottom: calc(1rem + var(--safe-bottom)); }
+
+    /* ---------------------------------------------------------------------
+       Etap M4 — suwak pod palec.
+       Natywny <input type=range> ma pole trafienia wysokości samego kciuka
+       (ok. 16 px), więc na telefonie przeciągnięcie łapało scroll zamiast
+       suwaka. Podniesienie wysokości elementu powiększa obszar dotyku, nie
+       ruszając wyglądu toru ani koloru z klasy accent-* Tailwinda.
+       --------------------------------------------------------------------- */
+    .touch-slider {
+        height: var(--tap);
+        -webkit-tap-highlight-color: transparent;
+        touch-action: pan-x;
+    }
+    @media (min-width: 768px) { .touch-slider { height: 2rem; } }
+
+    /* Chipy presetów też trzymają minimalny cel dotykowy; na desktopie mogą
+       być niższe, bo celuje się w nie myszą. */
+    .preset-chip { min-height: var(--tap); }
+    @media (min-width: 768px) { .preset-chip { min-height: 2rem; } }
+
+    /* ---------------------------------------------------------------------
+       Etap M5 — karta wyniku.
+       Odczyt, karta sensoryczna i wykres stały wcześniej jeden pod drugim,
+       więc po zaparzeniu trzeba było przewinąć przez wykres, żeby dojść do
+       liczb. Na telefonie te trzy panele dzielą jedno miejsce i przełącza
+       się je zakładkami; na desktopie stoją obok siebie jak dotąd, a pasek
+       zakładek znika. Jeden DOM, dwa układy.
+       --------------------------------------------------------------------- */
+    .result-tabs {
+        display: flex;
+        gap: 0.25rem;
+        padding: 0.25rem;
+        margin-bottom: 0.75rem;
+        background: #e7e5e4;
+        border-radius: 0.6rem;
+    }
+    .result-tab {
+        flex: 1 1 0;
+        min-height: var(--tap);
+        padding: 0.35rem 0.25rem;
+        border-radius: 0.45rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #57534e;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .result-tab.tab-on {
+        background: #ffffff;
+        color: #1c1917;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+    .result-pane { display: none; }
+    .result-pane.pane-active { display: block; }
+
+    @media (min-width: 768px) {
+        /* Własne `display: flex` wyżej ma tę samą specyficzność co klasa
+           md:hidden Tailwinda i stoi w arkuszu później, więc wygrywało —
+           pasek zakładek musi być chowany tutaj, nie klasą w markupie. */
+        .result-tabs { display: none; }
+        .result-panes {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1.5rem;
+            align-items: start;
+        }
+        .result-pane { display: block; }
+    }
+    @media (min-width: 1280px) {
+        .result-panes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+
+    /* ---------------------------------------------------------------------
+       Etap M6 — mini-gra na pełnym ekranie.
+       To jedyny ekran gry czasu rzeczywistego, więc żaden element sterowania
+       nie może wypaść pod krawędź: wcześniej overlay się przewijał i na
+       niskim ekranie przycisk « Zakończ parzenie » bywał poza widokiem.
+       Powłoka jest kolumną flex na pełną wysokość dvh, pole gry zabiera całą
+       resztę, a paski i przyciski mają stałą wysokość.
+       --------------------------------------------------------------------- */
+    .pour-shell {
+        height: 100vh;      /* fallback */
+        height: 100dvh;
+        max-width: 28rem;
+        margin: 0 auto;
+        padding: calc(0.75rem + var(--safe-top)) 0.75rem calc(0.75rem + var(--safe-bottom));
+        display: flex;
+        flex-direction: column;
+    }
+    /* Przełączanie etap/podsumowanie własnymi regułami: klasy `flex` i `hidden`
+       Tailwinda mają tę samą specyficzność i o wyniku decydowałaby kolejność
+       w arkuszu. Selektor z id rozstrzyga to jednoznacznie. */
+    #pour-stage, #pour-summary {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    #pour-stage.hidden, #pour-summary.hidden { display: none; }
+
+    /* Canvas trzyma kwadrat i mieści się w polu gry w obu osiach naraz.
+       Element MUSI zostać kwadratowy (nie object-fit), bo dotyk jest mapowany
+       przez getBoundingClientRect() całego elementu — letterboxing rozjechałby
+       współrzędne strumienia względem złoża. */
+    #pour-canvas {
+        aspect-ratio: 1 / 1;
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: 100%;
+    }
+
+    /* ---------------------------------------------------------------------
+       Etap M7 — Sklep na dotyk.
+       Kategorie jako zakładki (jedna sekcja naraz) i szczegóły przedmiotu
+       zwinięte pod tapnięcie. Na desktopie jedno i drugie znika: wszystkie
+       sekcje stoją obok siebie, a opisy są zawsze widoczne.
+       --------------------------------------------------------------------- */
+    .shop-section { display: none; }
+    .shop-section.pane-active { display: block; }
+    .shop-details { display: none; }
+    .shop-details.open { display: block; }
+    #shop-tabs { background: #e7e5e4; }
+
+    @media (min-width: 768px) {
+        .shop-section { display: block; }
+        .shop-details { display: block; }
+        .shop-more { display: none; }
+    }
+
+    /* Zwijany log zamówień w Kawiarni (Etap M7). */
+    #work-log.log-collapsed { display: none; }
+
+    /* Panel nastawu na desktopie: po przeniesieniu wykresu do karty wyniku
+       stoi sam w całej szerokości, więc suwaki układamy w dwie kolumny
+       zamiast rozciągać je na 1200 px. Selektor dorównuje specyficznością
+       klasie space-y-* Tailwinda, inaczej jej marginesy dodałyby się do gap. */
+    @media (min-width: 768px) {
+        .controls-panel {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem 1.5rem;
+            align-items: start;
+        }
+        .controls-panel > :not([hidden]) ~ :not([hidden]) { margin-top: 0; }
+        .controls-panel .controls-title,
+        .controls-panel .readout-box { grid-column: 1 / -1; }
+    }
 </style>
 </head>
-<body class="h-screen w-screen overflow-hidden flex flex-col">
+<body class="overflow-hidden flex flex-col">
 
-<header class="coffee-gradient text-stone-100 shadow-md z-10 flex-shrink-0">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-col md:flex-row md:justify-between items-center gap-2">
-        <div class="flex items-center gap-3">
-            <i class="fas fa-mug-hot text-2xl text-amber-500"></i>
-            <h1 class="text-xl font-bold tracking-wide">WBrC Simulator <span class="text-xs text-amber-500/70 align-top">v2</span></h1>
+<header class="coffee-gradient text-stone-100 shadow-md z-30 flex-shrink-0 app-header">
+    <div class="max-w-6xl mx-auto px-3 md:px-4 py-2 md:py-3 flex flex-row md:justify-between items-center gap-2 md:gap-3">
+        <div class="flex items-center gap-2 md:gap-3 shrink-0">
+            <i class="fas fa-mug-hot text-xl md:text-2xl text-amber-500"></i>
+            <h1 class="text-base md:text-xl font-bold tracking-wide whitespace-nowrap">WBrC<span class="hidden sm:inline"> Simulator</span> <span class="text-[11px] md:text-xs text-amber-400 align-top">v2</span></h1>
         </div>
-        <div class="flex flex-wrap justify-center gap-2 md:gap-3 lg:gap-6 text-sm font-semibold">
-            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
-                <span class="text-stone-300 text-xs">Budżet</span>
+        <div class="flex flex-1 md:flex-none flex-wrap justify-end md:justify-center items-center gap-1.5 md:gap-3 lg:gap-6 font-semibold">
+            <div class="stat-tile">
+                <i class="fas fa-wallet stat-icon text-emerald-400"></i>
+                <span class="stat-label">Budżet</span>
                 <span id="ui-money" class="text-emerald-400">0 PLN</span>
             </div>
-            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
-                <span class="text-stone-300 text-xs">Reputacja</span>
+            <div class="stat-tile">
+                <i class="fas fa-star stat-icon text-amber-400"></i>
+                <span class="stat-label">Reputacja</span>
                 <span id="ui-rep" class="text-amber-400">0 pkt</span>
             </div>
-            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
-                <span class="text-stone-300 text-xs">Sława</span>
-                <span id="ui-fame" class="text-fuchsia-400">0 pkt</span>
-            </div>
-            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
-                <span class="text-stone-300 text-xs">Rekord</span>
-                <span id="ui-best" class="text-sky-400">—</span>
-            </div>
-            <div class="flex flex-col items-center bg-black/20 px-3 py-1 rounded">
-                <span class="text-stone-300 text-xs">Dzień</span>
+            <div class="stat-tile">
+                <i class="fas fa-calendar-day stat-icon text-stone-300"></i>
+                <span class="stat-label">Dzień</span>
                 <span id="ui-day" class="text-stone-200">1</span>
             </div>
+            <div class="stat-tile stats-secondary">
+                <i class="fas fa-bolt stat-icon text-fuchsia-400"></i>
+                <span class="stat-label">Sława</span>
+                <span id="ui-fame" class="text-fuchsia-400">0 pkt</span>
+            </div>
+            <div class="stat-tile stats-secondary">
+                <i class="fas fa-medal stat-icon text-sky-400"></i>
+                <span class="stat-label">Rekord</span>
+                <span id="ui-best" class="text-sky-400">—</span>
+            </div>
+            <button id="btn-stats-toggle" onclick="toggleStats()" aria-expanded="false" aria-label="Pokaż sławę i rekord"
+                class="bg-black/20 rounded text-stone-300 px-2" style="min-height:2rem;min-width:2rem">
+                <i class="fas fa-chevron-down text-xs" id="stats-toggle-icon"></i>
+            </button>
         </div>
     </div>
-    <nav class="bg-stone-900/50 flex flex-wrap md:flex-nowrap justify-center border-b border-stone-700 w-full text-sm">
-        <button onclick="switchView('kawiarnia')" id="nav-kawiarnia" class="w-1/2 md:w-auto px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-store mr-2"></i>Kawiarnia</button>
-        <button onclick="switchView('sklep')" id="nav-sklep" class="w-1/2 md:w-auto px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-shopping-cart mr-2"></i>Sklep</button>
-        <button onclick="switchView('laboratorium')" id="nav-laboratorium" class="w-1/2 md:w-auto px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-flask mr-2"></i>Laboratorium</button>
-        <button onclick="switchView('konkurs')" id="nav-konkurs" class="w-1/2 md:w-auto px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center relative opacity-50"><i class="fas fa-trophy mr-2"></i>Konkurs<span id="comp-lock-icon" class="absolute top-1 right-3 text-xs text-red-500"><i class="fas fa-lock"></i></span></button>
+    <nav class="hidden md:flex bg-stone-900/50 flex-nowrap justify-center border-b border-stone-700 w-full text-sm">
+        <button onclick="switchView('kawiarnia')" id="nav-kawiarnia" class="px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-store mr-2"></i>Kawiarnia</button>
+        <button onclick="switchView('sklep')" id="nav-sklep" class="px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-shopping-cart mr-2"></i>Sklep</button>
+        <button onclick="switchView('laboratorium')" id="nav-laboratorium" class="px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center"><i class="fas fa-flask mr-2"></i>Laboratorium</button>
+        <button onclick="switchView('konkurs')" id="nav-konkurs" class="px-4 py-3 text-stone-300 hover:text-white border-b-2 border-transparent transition-colors flex items-center justify-center relative opacity-50"><i class="fas fa-trophy mr-2"></i>Konkurs<span id="comp-lock-icon" class="absolute top-1 right-3 text-xs text-red-500"><i class="fas fa-lock"></i></span></button>
     </nav>
 </header>
 
-<main class="flex-1 overflow-y-auto custom-scrollbar relative p-4 md:p-8">
+<main class="flex-1 overflow-y-auto custom-scrollbar relative p-4 pb-0 md:p-8 md:pb-0">
 
     <!-- ====================== KAWIARNIA ====================== -->
     <section id="view-kawiarnia" class="max-w-4xl mx-auto space-y-6">
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200">
             <h2 id="kawiarnia-title" class="text-2xl mb-2 text-stone-800">Kawiarnia Osiedlowa</h2>
-            <p class="text-stone-600 mb-6">Pracuj za barem, parz przelewy dla mieszkańców. Jakość sprzętu i ziarna przekłada się na napiwki oraz tempo budowania reputacji.</p>
-            <div class="flex flex-col md:flex-row gap-8 items-center justify-center bg-stone-50 p-8 rounded-lg border border-stone-100">
-                <div class="text-center w-full md:w-1/2">
-                    <i class="fas fa-users text-4xl text-stone-400 mb-4"></i>
-                    <h3 class="text-lg font-semibold mb-4">Kolejka klientów</h3>
-                    <div id="stations-panel" class="w-full space-y-4"></div>
-                    <p id="queue-status" class="text-xs text-stone-500 mt-2"></p>
-                </div>
-                <div class="w-full md:w-1/2 bg-white p-4 rounded-lg shadow-inner text-sm space-y-2 border border-stone-200">
-                    <h4 class="font-bold text-stone-700 border-b pb-2 mb-2"><i class="fas fa-history mr-2"></i>Ostatnie zamówienia</h4>
-                    <ul id="work-log" class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
-                        <li class="text-stone-400 italic">Oczekujesz na klientów...</li>
-                    </ul>
-                </div>
+            <p class="text-stone-600 mb-5 text-sm md:text-base">Pracuj za barem, parz przelewy dla mieszkańców. Jakość sprzętu i ziarna przekłada się na napiwki oraz tempo budowania reputacji.</p>
+            <div class="bg-white p-4 rounded-lg shadow-inner text-sm border border-stone-200">
+                <button type="button" onclick="Kawiarnia.toggleLog()" class="w-full flex items-center justify-between font-bold text-stone-700 border-b pb-2 mb-2">
+                    <span><i class="fas fa-history mr-2"></i>Ostatnie zamówienia</span>
+                    <i id="work-log-chevron" class="fas fa-chevron-up text-xs text-stone-400"></i>
+                </button>
+                <ul id="work-log" class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+                    <li class="text-stone-400 italic">Oczekujesz na klientów...</li>
+                </ul>
             </div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200">
             <h3 class="font-bold text-stone-800 mb-4"><i class="fas fa-toolbox mr-2"></i>Twój aktualny setup</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm" id="eq-panel"></div>
+            <!-- Etap M7: dwie kolumny już na telefonie — pięć kafelków jeden pod
+                 drugim zajmowało 566 px, czyli cały ekran na samą informację. -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 text-sm" id="eq-panel"></div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200" id="location-panel"></div>
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200" id="location-panel"></div>
+        <!-- Dok akcji: stanowiska pracy (Etap M2). Wypełniany przez Kawiarnia.renderStations(). -->
+        <div class="action-dock" id="stations-panel"></div>
     </section>
 
     <!-- ====================== SKLEP ====================== -->
-    <section id="view-sklep" class="max-w-6xl mx-auto space-y-6 view-hidden">
-        <div class="text-center mb-8">
-            <h2 class="text-3xl font-bold text-stone-800">Sklep Specjalistyczny</h2>
-            <p class="text-stone-600 mt-2">Każdy przedmiot zmienia konkretny parametr modelu ekstrakcji. Najedź, żeby zobaczyć wpływ na fizykę parzenia.</p>
+    <section id="view-sklep" class="max-w-6xl mx-auto space-y-6 pb-4 md:pb-8 view-hidden">
+        <div class="text-center mb-5 md:mb-8">
+            <h2 class="text-2xl md:text-3xl font-bold text-stone-800">Sklep Specjalistyczny</h2>
+            <p class="text-stone-600 mt-2 text-sm md:text-base">Każdy przedmiot zmienia konkretny parametr modelu ekstrakcji.</p>
         </div>
+        <!-- Zakładki kategorii (Etap M7). Wypełniane przez Sklep.render(). -->
+        <div id="shop-tabs" class="result-tabs sticky top-0 z-10" role="tablist"></div>
         <div id="shop-container" class="space-y-10"></div>
     </section>
 
     <!-- ====================== LABORATORIUM ====================== -->
     <section id="view-laboratorium" class="max-w-6xl mx-auto space-y-6 view-hidden">
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-stone-200">
             <h2 class="text-2xl mb-1 text-stone-800"><i class="fas fa-microscope mr-2 text-amber-700"></i>Laboratorium Ekstrakcji</h2>
             <p class="text-stone-600 text-sm mb-6">Model kinetyczny: czas kontaktu nie jest suwakiem — wynika z oporu złoża. Drobniej zmielisz, wolniej poleci woda, dłużej się ekstrahuje. Celuj w Golden Cup: <strong>EY 18–22%</strong>, <strong>TDS 1,15–1,35%</strong>.</p>
 
-            <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                <!-- Panel nastawu -->
-                <div class="space-y-5 bg-stone-50 p-6 rounded-lg border border-stone-200" id="lab-controls"></div>
+            <!-- Panel nastawu (na telefonie przenoszony do szuflady, Etap M3) -->
+            <div class="controls-panel space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="lab-controls"></div>
 
-                <!-- Wykres -->
-                <div class="bg-stone-900 rounded-lg p-4 border border-stone-800">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="font-bold text-stone-300 text-sm"><i class="fas fa-chart-scatter mr-1"></i> Brewing Control Chart</h3>
-                        <button onclick="Lab.clearHistory()" class="text-xs text-stone-500 hover:text-stone-300"><i class="fas fa-eraser mr-1"></i>wyczyść historię</button>
+            <!-- Karta wyniku (Etap M5): na telefonie trzy zakładki, na desktopie
+                 te same trzy panele obok siebie. Jeden DOM, dwa układy. -->
+            <div class="mt-6 md:mt-8" id="lab-result-card">
+                <div id="lab-tabs" class="result-tabs md:hidden" role="tablist"></div>
+                <div class="result-panes">
+                    <div class="result-pane pane-active" id="lab-pane-wynik">
+                        <div class="bg-stone-900 text-stone-200 p-4 md:p-6 rounded-lg border border-stone-800 h-full">
+                            <h3 class="pane-title font-bold border-b border-stone-700 pb-2 mb-4 text-stone-300 text-sm uppercase tracking-wider">Odczyt analityczny</h3>
+                            <div id="lab-idle" class="py-10 flex flex-col justify-center items-center text-stone-600">
+                                <i class="fas fa-tint text-4xl mb-3"></i><p>Oczekuje na próbkę...</p>
+                            </div>
+                            <div id="lab-metrics" class="hidden grid grid-cols-2 gap-3"></div>
+                        </div>
                     </div>
-                    <div id="chart-lab"></div>
-                    <p class="text-[11px] text-stone-500 mt-2 leading-relaxed">Pozioma kreska przy punkcie to <strong class="text-stone-400">rozrzut ekstrakcji (σ)</strong> — jak bardzo różne cząstki w tym samym złożu wyekstrahowały się nierówno. Duże σ = jednocześnie kwaśno i ściągająco.</p>
+                    <div class="result-pane" id="lab-pane-sensoryka">
+                        <div class="bg-white p-4 md:p-6 rounded-lg border border-stone-200 shadow-sm h-full">
+                            <h3 class="pane-title font-bold border-b pb-2 mb-4 text-stone-700 text-sm uppercase tracking-wider">Karta sensoryczna (skala WBrC 0–9)</h3>
+                            <div id="lab-sensory" class="space-y-2 opacity-30"></div>
+                            <div id="lab-verdict" class="mt-4 text-sm italic text-stone-600 border-l-4 border-stone-300 pl-3 py-1"></div>
+                        </div>
+                    </div>
+                    <div class="result-pane" id="lab-pane-wykres">
+                        <div class="bg-stone-900 rounded-lg p-4 border border-stone-800 h-full">
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="pane-title font-bold text-stone-300 text-sm"><i class="fas fa-chart-scatter mr-1"></i> Brewing Control Chart</h3>
+                                <button onclick="Lab.clearHistory()" class="text-xs text-stone-500 hover:text-stone-300 px-2 py-2 -mr-2"><i class="fas fa-eraser mr-1"></i>wyczyść historię</button>
+                            </div>
+                            <div id="chart-lab"></div>
+                            <p class="text-[11px] text-stone-500 mt-2 leading-relaxed">Pozioma kreska przy punkcie to <strong class="text-stone-400">rozrzut ekstrakcji (σ)</strong> — jak bardzo różne cząstki w tym samym złożu wyekstrahowały się nierówno. Duże σ = jednocześnie kwaśno i ściągająco.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Wyniki -->
-            <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-stone-900 text-stone-200 p-6 rounded-lg border border-stone-800">
-                    <h3 class="font-bold border-b border-stone-700 pb-2 mb-4 text-stone-300 text-sm uppercase tracking-wider">Odczyt analityczny</h3>
-                    <div id="lab-idle" class="py-10 flex flex-col justify-center items-center text-stone-600">
-                        <i class="fas fa-tint text-4xl mb-3"></i><p>Oczekuje na próbkę...</p>
-                    </div>
-                    <div id="lab-metrics" class="hidden grid grid-cols-2 gap-3"></div>
-                </div>
-                <div class="bg-white p-6 rounded-lg border border-stone-200 shadow-sm">
-                    <h3 class="font-bold border-b pb-2 mb-4 text-stone-700 text-sm uppercase tracking-wider">Karta sensoryczna (skala WBrC 0–9)</h3>
-                    <div id="lab-sensory" class="space-y-2 opacity-30"></div>
-                    <div id="lab-verdict" class="mt-4 text-sm italic text-stone-600 border-l-4 border-stone-300 pl-3 py-1"></div>
-                </div>
-            </div>
+            <!-- Receptury: wyjęte z panelu nastawu (Etap M3), bo nie są jego
+                 częścią — panel wędruje na telefonie do szuflady, a zapisane
+                 receptury czyta się razem z wynikiem. -->
+            <div class="mt-6 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200 space-y-3" id="lab-recipes"></div>
         </div>
+        <!-- Dok akcji: przyciski parzenia (Etap M2). Wypełniany przez Lab.buildControls(). -->
+        <div class="action-dock" id="dock-lab"></div>
     </section>
 
     <!-- ====================== KONKURS ====================== -->
     <section id="view-konkurs" class="max-w-6xl mx-auto space-y-6 view-hidden">
-        <div class="bg-white p-5 rounded-xl shadow-sm border border-stone-200">
+        <div class="bg-white p-4 md:p-5 rounded-xl shadow-sm border border-stone-200">
             <h3 class="font-bold text-stone-700 mb-3 text-sm uppercase tracking-wider"><i class="fas fa-ranking-star mr-2"></i>Drabinka kariery</h3>
             <div id="comp-ladder" class="space-y-2"></div>
         </div>
-        <div class="bg-gradient-to-r from-stone-800 to-stone-900 text-white p-8 rounded-xl shadow-lg relative overflow-hidden">
+        <div class="bg-gradient-to-r from-stone-800 to-stone-900 text-white p-5 md:p-8 rounded-xl shadow-lg relative overflow-hidden">
             <div class="relative z-10">
-                <span id="comp-hero-tier" class="bg-amber-600 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider"></span>
-                <h2 id="comp-hero-name" class="text-3xl mt-2 mb-1 serif text-amber-400"></h2>
+                <span id="comp-hero-tier" class="bg-amber-700 text-xs font-bold px-2 py-1 rounded uppercase tracking-wider"></span>
+                <h2 id="comp-hero-name" class="text-2xl md:text-3xl mt-2 mb-1 serif text-amber-400"></h2>
                 <p id="comp-hero-place" class="text-stone-400 text-xs mb-3"></p>
                 <p id="comp-hero-desc" class="mb-3 text-stone-300 max-w-2xl text-sm"></p>
                 <p class="text-stone-300 text-sm">Próg zwycięstwa: <strong id="comp-hero-threshold" class="text-amber-400"></strong> sumy karty sensorycznej.</p>
@@ -154,33 +504,67 @@
             </div>
             <i class="fas fa-award absolute -right-10 -top-10 text-[200px] text-white opacity-5 rotate-12"></i>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow border border-stone-200 grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <div class="space-y-5 bg-stone-50 p-6 rounded-lg border border-stone-200" id="comp-controls"></div>
-            <div class="bg-stone-900 rounded-lg p-4 border border-stone-800">
-                <h3 class="font-bold text-stone-300 text-sm mb-2">Brewing Control Chart</h3>
-                <div id="chart-comp"></div>
-            </div>
+        <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200">
+            <div class="controls-panel space-y-5 bg-stone-50 p-4 md:p-6 rounded-lg border border-stone-200" id="comp-controls"></div>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow border border-stone-200 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-                <div id="comp-idle" class="text-center text-stone-400 py-10"><i class="fas fa-clipboard-list text-5xl mb-4"></i><p>Sędziowie czekają na Twój napar...</p></div>
-                <div id="comp-result" class="hidden text-center">
-                    <div id="comp-icon" class="text-6xl mb-4"></div>
-                    <h3 id="comp-title" class="text-2xl font-bold mb-2"></h3>
-                    <p id="comp-desc" class="text-stone-600 mb-4 text-sm"></p>
-                    <div class="inline-block bg-stone-100 px-6 py-3 rounded-lg">
-                        <span class="block text-xs uppercase text-stone-500 tracking-wider">Wynik łączny</span>
-                        <span id="comp-score" class="text-4xl font-bold mono text-stone-800"></span>
+
+        <!-- Karta wyniku (Etap M5) -->
+        <div id="comp-result-card">
+            <div id="comp-tabs" class="result-tabs md:hidden" role="tablist"></div>
+            <div class="result-panes">
+                <div class="result-pane pane-active" id="comp-pane-wynik">
+                    <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200 h-full">
+                        <div id="comp-idle" class="text-center text-stone-400 py-10"><i class="fas fa-clipboard-list text-5xl mb-4"></i><p>Sędziowie czekają na Twój napar...</p></div>
+                        <div id="comp-result" class="hidden text-center">
+                            <div id="comp-icon" class="text-6xl mb-4"></div>
+                            <h3 id="comp-title" class="text-2xl font-bold mb-2"></h3>
+                            <p id="comp-desc" class="text-stone-600 mb-4 text-sm"></p>
+                            <div class="inline-block bg-stone-100 px-6 py-3 rounded-lg">
+                                <span class="block text-xs uppercase text-stone-500 tracking-wider">Wynik łączny</span>
+                                <span id="comp-score" class="text-4xl font-bold mono text-stone-800"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="result-pane" id="comp-pane-sensoryka">
+                    <div class="bg-white p-4 md:p-6 rounded-xl shadow border border-stone-200 h-full">
+                        <h3 class="pane-title font-bold border-b pb-2 mb-4 text-stone-700 text-sm uppercase tracking-wider">Karta sędziowska</h3>
+                        <div id="comp-sensory" class="space-y-2 opacity-30"></div>
+                    </div>
+                </div>
+                <div class="result-pane" id="comp-pane-wykres">
+                    <div class="bg-stone-900 rounded-lg p-4 border border-stone-800 h-full">
+                        <h3 class="pane-title font-bold text-stone-300 text-sm mb-2">Brewing Control Chart</h3>
+                        <div id="chart-comp"></div>
                     </div>
                 </div>
             </div>
-            <div>
-                <h3 class="font-bold border-b pb-2 mb-4 text-stone-700 text-sm uppercase tracking-wider">Karta sędziowska</h3>
-                <div id="comp-sensory" class="space-y-2 opacity-30"></div>
-            </div>
         </div>
+        <!-- Dok akcji: start prezentacji (Etap M2). Wypełniany przez Konkursy.buildControls(). -->
+        <div class="action-dock" id="dock-comp"></div>
     </section>
 </main>
+
+<!-- Dolny pasek zakładek — strefa kciuka (Etap M1). Na desktopie ukryty,
+     rolę nawigacji przejmuje pasek pod nagłówkiem. -->
+<nav id="tabbar" class="md:hidden flex-shrink-0 bg-stone-900 border-t border-stone-700 flex z-30">
+    <button onclick="switchView('kawiarnia')" id="tab-kawiarnia" class="tab-btn"><i class="fas fa-store"></i><span class="tab-label">Kawiarnia</span></button>
+    <button onclick="switchView('sklep')" id="tab-sklep" class="tab-btn"><i class="fas fa-shopping-cart"></i><span class="tab-label">Sklep</span></button>
+    <button onclick="switchView('laboratorium')" id="tab-laboratorium" class="tab-btn"><i class="fas fa-flask"></i><span class="tab-label">Lab</span></button>
+    <button onclick="switchView('konkurs')" id="tab-konkurs" class="tab-btn tab-locked"><i class="fas fa-trophy"></i><span class="tab-label">Konkurs <i class="fas fa-lock text-[9px]" id="tab-comp-lock-icon"></i></span></button>
+</nav>
+
+<!-- Szuflada nastawu (Etap M3). z-40: nad dolnym paskiem zakładek (z-30),
+     pod modalem (z-50) i mini-grą (z-60). -->
+<div id="sheet-backdrop" onclick="closeSheet()" class="md:hidden fixed inset-0 bg-black/50 z-40"></div>
+<div id="sheet" class="md:hidden fixed inset-x-0 bottom-0 z-40 flex flex-col bg-white rounded-t-2xl shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+    <div class="shrink-0 pt-2 pb-1 flex justify-center"><span class="block w-10 h-1 rounded-full bg-stone-300"></span></div>
+    <div class="shrink-0 flex items-center justify-between px-4 pb-2 border-b border-stone-200">
+        <h3 id="sheet-title" class="font-bold text-stone-800">Parametry nastawu</h3>
+        <button onclick="closeSheet()" class="text-sm font-semibold text-amber-700 px-3 py-2 -mr-3">Gotowe</button>
+    </div>
+    <div id="sheet-body" class="flex-1 overflow-y-auto custom-scrollbar px-4 pt-4"></div>
+</div>
 
 <div id="custom-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 p-4">
     <div class="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full transform scale-95 transition-transform duration-300" id="custom-modal-content">
@@ -188,63 +572,77 @@
             <div id="modal-icon" class="text-4xl mb-4 text-amber-500"><i class="fas fa-info-circle"></i></div>
             <h3 id="modal-title" class="text-xl font-bold text-stone-800 mb-2"></h3>
             <p id="modal-text" class="text-stone-600 mb-6 text-sm"></p>
-            <button onclick="closeModal()" class="bg-stone-800 text-white px-6 py-2 rounded font-semibold hover:bg-black w-full">OK</button>
+            <button onclick="closeModal()" class="bg-stone-800 text-white px-6 py-3 rounded font-semibold hover:bg-black w-full">OK</button>
         </div>
     </div>
 </div>
 
-<!-- Overlay mini-gry nalewania -->
-<div id="pour-overlay" class="hidden fixed inset-0 bg-stone-950/[0.97] z-[60] overflow-y-auto p-4">
-  <div class="max-w-md mx-auto text-stone-200">
+<!-- Overlay mini-gry nalewania (Etap M6: pełny ekran, bez przewijania) -->
+<div id="pour-overlay" class="hidden fixed inset-0 bg-stone-950 z-[60] overflow-hidden">
+  <div class="pour-shell text-stone-200">
 
     <div id="pour-stage">
-      <div class="flex justify-between items-baseline mb-1">
+      <div class="shrink-0 flex justify-between items-baseline">
         <span id="pour-phase" class="font-bold text-sm text-amber-400"></span>
         <span class="mono text-xs text-stone-500">czas parzenia <span id="pour-time">0:00</span></span>
       </div>
-      <p id="pour-hint" class="text-xs text-stone-400 mb-3 h-8"></p>
+      <p id="pour-hint" class="shrink-0 text-xs text-stone-400 leading-snug" style="min-height:2.25rem"></p>
 
-      <div class="flex gap-3 items-stretch">
-        <canvas id="pour-canvas" class="flex-1 min-w-0 rounded-lg bg-stone-900 touch-none select-none cursor-crosshair" style="max-width:340px"></canvas>
-        <div class="w-7 shrink-0 flex flex-col items-center">
-          <span class="text-[9px] text-stone-500 mb-1 text-center leading-tight">poziom<br>wody</span>
-          <div class="flex-1 w-full bg-stone-800 rounded relative overflow-hidden border border-stone-700">
-            <div class="absolute w-full border-t border-dashed border-red-500/70" style="bottom:71%"></div>
-            <div id="pour-level-bar" class="w-full absolute bottom-0 bg-sky-500 transition-all" style="height:0%"></div>
-          </div>
+      <!-- Pole gry: zabiera całą wolną wysokość, canvas skaluje się do niej.
+           Rozdzielczość wewnętrzna canvasu jest stała (CV), a współrzędne
+           dotyku przeliczane przez getBoundingClientRect(), więc rozmiar CSS
+           może być dowolny — logika mini-gry nic o nim nie wie. -->
+      <div class="flex-1 min-h-0 flex items-center justify-center relative">
+        <canvas id="pour-canvas" class="rounded-lg bg-stone-900 touch-none select-none cursor-crosshair"></canvas>
+        <p id="pour-howto" class="absolute inset-x-0 bottom-0 text-[11px] text-stone-400 bg-stone-950/85 rounded-b-lg px-3 py-2 leading-snug pointer-events-none">
+          Przytrzymaj i prowadź palcem po złożu, żeby lać. Puść, żeby przerwać strumień.
+        </p>
+      </div>
+
+      <div id="pour-rest" class="hidden shrink-0 text-center text-sky-400 text-sm font-bold mono"></div>
+
+      <!-- Poziom zalania: pasek poziomy pod polem gry (Etap M6). Pionowy obok
+           canvasu zabierał 28 px szerokości tam, gdzie jest jej najmniej. -->
+      <div class="shrink-0">
+        <div class="flex justify-between text-[11px] mb-1">
+          <span class="text-stone-400">Poziom wody nad złożem</span>
+          <span class="text-stone-500">powyżej kreski złoże się ubija</span>
+        </div>
+        <div class="h-2.5 bg-stone-800 rounded-full relative overflow-hidden border border-stone-700">
+          <div id="pour-level-bar" class="absolute left-0 top-0 h-full bg-sky-500 transition-all" style="width:0%"></div>
+          <div class="absolute inset-y-0 border-l border-dashed border-red-500/70" style="left:71%"></div>
         </div>
       </div>
 
-      <div id="pour-rest" class="hidden text-center text-sky-400 text-sm font-bold mt-3 mono"></div>
-
-      <div class="mt-3">
-        <div class="flex justify-between text-xs mb-1">
+      <div class="shrink-0">
+        <div class="flex justify-between text-[11px] mb-1">
           <span class="text-stone-400">Nalana woda</span>
           <span id="pour-water" class="mono font-bold">0 / 0 g</span>
         </div>
-        <div class="h-2 bg-stone-800 rounded-full overflow-hidden">
+        <div class="h-2.5 bg-stone-800 rounded-full overflow-hidden">
           <div id="pour-water-bar" class="h-full bg-amber-500 transition-all" style="width:0%"></div>
         </div>
       </div>
 
-      <div class="flex gap-2 mt-4">
-        <button onclick="PourMinigame.finish()" class="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded text-sm">Zakończ parzenie</button>
-        <button onclick="PourMinigame.abort()" class="px-4 bg-stone-800 hover:bg-stone-700 text-stone-300 py-2.5 rounded text-sm">Przerwij</button>
+      <div class="shrink-0 flex gap-2">
+        <button onclick="PourMinigame.finish()" class="flex-1 bg-amber-700 hover:bg-amber-800 text-white font-bold py-3 rounded-lg text-sm">Zakończ parzenie</button>
+        <button onclick="PourMinigame.abort()" class="px-5 bg-stone-800 hover:bg-stone-700 text-stone-300 py-3 rounded-lg text-sm">Przerwij</button>
       </div>
-      <p class="text-[11px] text-stone-600 mt-3 leading-relaxed">Przytrzymaj i prowadź po złożu, żeby lać. Puść, żeby przerwać strumień. Czerwona kreska na pasku to poziom zalania — powyżej niej pył wędruje w dół i ubija złoże.</p>
     </div>
 
     <div id="pour-summary" class="hidden">
-      <h3 class="font-bold text-lg mb-1 text-amber-400">Mapa rozlewu</h3>
-      <p class="text-xs text-stone-400 mb-3">Gdzie faktycznie trafiła woda względem powierzchni złoża.</p>
-      <canvas id="pour-heatmap" class="w-full rounded-lg mb-2" style="max-width:340px"></canvas>
-      <div class="flex justify-center gap-4 text-[10px] text-stone-400 mb-4">
-        <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:rgb(60,90,240)"></span>za mało wody</span>
-        <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:rgb(120,110,70)"></span>idealnie</span>
-        <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:rgb(250,50,30)"></span>za dużo</span>
+      <h3 class="shrink-0 font-bold text-lg text-amber-400">Mapa rozlewu</h3>
+      <p class="shrink-0 text-xs text-stone-400 mb-2">Gdzie faktycznie trafiła woda względem powierzchni złoża.</p>
+      <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+        <canvas id="pour-heatmap" class="w-full max-w-[280px] mx-auto rounded-lg mb-2"></canvas>
+        <div class="flex justify-center flex-wrap gap-x-4 gap-y-1 text-[11px] text-stone-400 mb-3">
+          <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:rgb(60,90,240)"></span>za mało wody</span>
+          <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:rgb(120,110,70)"></span>idealnie</span>
+          <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:rgb(250,50,30)"></span>za dużo</span>
+        </div>
+        <div id="pour-stats" class="bg-stone-900 rounded-lg p-4 border border-stone-800"></div>
       </div>
-      <div id="pour-stats" class="bg-stone-900 rounded-lg p-4 border border-stone-800"></div>
-      <button onclick="PourMinigame.confirm()" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded">Analizuj napar</button>
+      <button onclick="PourMinigame.confirm()" class="shrink-0 w-full mt-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold py-3 rounded-lg">Analizuj napar</button>
     </div>
 
   </div>
